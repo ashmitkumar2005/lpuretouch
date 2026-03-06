@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import 'profile_screen.dart';
 
 const Map<String, IconData> _menuIcons = {
   'Announcements': Icons.campaign_outlined,
@@ -65,7 +66,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final name = (_user?['Name'] ?? 'Student').toString().split(' ')[0];
+    final name = (_user?['ExtractedName'] ?? 'Student').toString().split(' ')[0];
     final regNo = _user?['RegNo'] ?? '';
 
     return Scaffold(
@@ -284,7 +285,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
                         ),
                         const Icon(Icons.image_outlined, color: Colors.white, size: 26),
-                        const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
+                        GestureDetector(
+                          onTap: () {
+                            if (_user != null) {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(builder: (context) => ProfileScreen(user: _user!)),
+                              );
+                            }
+                          },
+                          child: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
+                        ),
                       ],
                     ),
                   ),

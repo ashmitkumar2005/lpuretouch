@@ -37,16 +37,36 @@ class AuthService {
           orElse: () => null,
         );
         if (tokenItem != null) {
-          final userInfo = parsed.firstWhere(
-            (e) => e['Name'] != null && e['Name'].toString().isNotEmpty,
-            orElse: () => null,
-          );
+          final Map<String, dynamic> combinedUser = {};
           
-          final combinedUser = {
-            'Name': userInfo != null ? userInfo['Name'] : userId,
-            'RegNo': tokenItem['RegNo'] ?? userId,
-            'Program': tokenItem['Program'] ?? '',
-          };
+          // Merge all attributes from all objects in the array to ensure we catch the Name
+          for (var item in parsed) {
+            if (item is Map<String, dynamic>) {
+              item.forEach((key, value) {
+                // Ignore menu routing items, keep user profile attributes
+                if (key != 'MenuText' && key != 'Url' && key != 'RouteName' && value != null && value.toString().isNotEmpty) {
+                  combinedUser[key] = value;
+                }
+              });
+            }
+          }
+
+          // Fallback manual mappings if standard keys are missing
+          combinedUser['RegNo'] = combinedUser['RegNo'] ?? tokenItem['RegNo'] ?? userId;
+          
+          // Heuristic to find the Name under various UMS keys
+          final possibleName = combinedUser['Name'] ?? 
+                               combinedUser['StudentName'] ?? 
+                               combinedUser['ApplicantName'] ??
+                               combinedUser['userName'] ??
+                               combinedUser['FullName'] ??
+                               combinedUser['FirstName'];
+          
+          if (possibleName != null) {
+             combinedUser['ExtractedName'] = possibleName;
+          } else {
+             combinedUser['ExtractedName'] = userId;
+          }
 
           await _storage.write(key: 'lpu_token', value: tokenItem['AccessToken']);
           await _storage.write(key: 'lpu_userId', value: userId);
