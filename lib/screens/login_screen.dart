@@ -216,24 +216,22 @@ class _LoginScreenState extends State<LoginScreen>
                     position: _cardSlide,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(40),
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-                          decoration: BoxDecoration(
-                            // Gradient fill: top bright, bottom slightly dim — like light from above
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withAlpha(220),
-                                Colors.white.withAlpha(155),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(40),
-                            border: Border.all(
-                              color: Colors.white.withAlpha(230),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
+                        decoration: BoxDecoration(
+                          // Gradient fill: top bright, bottom slightly dim — like light from above
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white.withAlpha(240),
+                              Colors.white.withAlpha(190),
+                            ],
+                          ),
+                          borderRadius: BorderRadius.circular(40),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(230),
                               width: 1.2,
                             ),
                             boxShadow: [
@@ -345,7 +343,6 @@ class _LoginScreenState extends State<LoginScreen>
                           ),  // close Form
                          ]),  // close Stack children
                         ),    // close Container
-                      ),      // close BackdropFilter
                     ),        // close ClipRRect
                   ),          // close SlideTransition child
                 ),            // close FadeTransition child
@@ -455,23 +452,21 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
           child: RepaintBoundary( // Prevent blurring recreation during shake
             child: ClipRRect(
               borderRadius: BorderRadius.circular(18),
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                child: SizedBox(
-                  height: 56,
-                  child: Stack(
-                    children: [
-                      // Base unfocused background (Static)
-                      Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withAlpha(200),
-                              Colors.white.withAlpha(140),
-                            ],
-                          ),
+              child: SizedBox(
+                height: 56,
+                child: Stack(
+                  children: [
+                    // Base unfocused background (Static)
+                    Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.white.withAlpha(240),
+                            Colors.white.withAlpha(190),
+                          ],
+                        ),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: Colors.white.withAlpha(220),
@@ -575,7 +570,6 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                       ],
                     ), // Stack
                   ), // SizedBox
-                ), // BackdropFilter
               ), // ClipRRect
             ), // RepaintBoundary
           ), // AnimatedBuilder
@@ -643,16 +637,14 @@ class _AnimatedButtonState extends State<_AnimatedButton>
         child: RepaintBoundary( // Caches button contents to avoid blurring dynamically
           child: ClipRRect(
             borderRadius: BorderRadius.circular(18),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-              child: Container(
-                width: double.infinity,
-                height: 56,
-                decoration: BoxDecoration(
-                  // Left-to-right gradient for button premium look
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
+            child: Container(
+              width: double.infinity,
+              height: 56,
+              decoration: BoxDecoration(
+                // Left-to-right gradient for button premium look
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
                     colors: widget.loading
                         ? [
                             Colors.black.withAlpha(160),
@@ -708,7 +700,6 @@ class _AnimatedButtonState extends State<_AnimatedButton>
             ),
           ),
         ),
-      ),
     );
   }
 }
