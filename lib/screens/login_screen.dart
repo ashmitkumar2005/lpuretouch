@@ -387,7 +387,7 @@ class _LiquidGlassField extends StatefulWidget {
 }
 
 class _LiquidGlassFieldState extends State<_LiquidGlassField>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late FocusNode _focus;
   late AnimationController _animCtrl;
   late Animation<double> _glowOpacity;
