@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'profile_screen.dart';
+import '../main.dart';
 
 const Map<String, IconData> _menuIcons = {
   'Announcements': Icons.campaign_outlined,
@@ -60,14 +61,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }).catchError((_) {});
   }
 
-  Future<void> _logout() async {
-    await _authService.logout();
-    if (mounted) Navigator.pushReplacementNamed(context, '/');
-  }
-
   List<dynamic> get _filtered => _searchQuery.isEmpty
       ? _menus
       : _menus.where((m) => m['MenuText'].toString().toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+
 
   @override
   Widget build(BuildContext context) {
@@ -90,31 +87,79 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         // 1. Top User Profile Section
                         Row(
                           children: [
-                            CircleAvatar(
-                              radius: 22,
-                              backgroundColor: const Color(0xFF2050E4),
-                              child: Text(name.isNotEmpty ? name[0] : 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                            ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                            GestureDetector(
+                              onTap: () {
+                                if (_user != null) {
+                                  GlobalLayout.of(context)?.navigateTo(4, ProfileScreen(user: _user!), '/profile');
+                                }
+                              },
+                              behavior: HitTestBehavior.opaque,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Text('HI, $name', style: const TextStyle(color: Color(0xFF000000), fontSize: 16, fontWeight: FontWeight.bold)),
-                                  const Text('Storage Used: 75%', style: TextStyle(color: Color(0xFF9D9D9D), fontSize: 13, fontWeight: FontWeight.w500)),
+                                  CircleAvatar(
+                                    radius: 26,
+                                    backgroundColor: Colors.transparent,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        shape: BoxShape.circle,
+                                        gradient: const LinearGradient(
+                                          colors: [Color(0xFF2050E4), Color(0xFF3B82F6)],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(0xFF2050E4).withValues(alpha: 0.3),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          )
+                                        ]
+                                      ),
+                                      child: Center(
+                                        child: Text(name.isNotEmpty ? name[0] : 'U', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
                                 ],
                               ),
                             ),
+                            Expanded(
+                              child: GestureDetector(
+                                onTap: () {
+                                  if (_user != null) {
+                                    GlobalLayout.of(context)?.navigateTo(4, ProfileScreen(user: _user!), '/profile');
+                                  }
+                                },
+                                behavior: HitTestBehavior.opaque,
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('HI, ${name.toUpperCase()}', style: const TextStyle(color: Color(0xFF0F172A), fontSize: 16, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                                    Text(regNo, style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 14, fontWeight: FontWeight.w500)),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // Notification Icon
                             Container(
+                              height: 48,
+                              width: 48,
                               decoration: BoxDecoration(
+                                color: Colors.white,
                                 shape: BoxShape.circle,
-                                border: Border.all(color: const Color(0xFFE5E5E5), width: 1.5),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withValues(alpha: 0.04),
+                                    blurRadius: 12,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
                               ),
                               child: IconButton(
                                 onPressed: () {},
-                                icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF000000)),
-                                padding: const EdgeInsets.all(8),
-                                constraints: const BoxConstraints(),
+                                icon: Icon(Icons.notifications_none_rounded, color: Colors.black.withValues(alpha: 0.7)),
                               ),
                             ),
                           ],
@@ -123,12 +168,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         // 2. Main Title Area
                         const Text(
-                          'Welcome to LPU Touch',
+                          'Welcome to\nLPU Touch',
                           style: TextStyle(
-                            color: Color(0xFF000000),
-                            fontSize: 32,
+                            color: Color(0xFF1E293B),
+                            fontSize: 34,
                             fontWeight: FontWeight.w800,
-                            letterSpacing: -0.5,
+                            letterSpacing: -1.2,
+                            height: 1.1,
                           ),
                         ),
                         const SizedBox(height: 24),
@@ -137,39 +183,49 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         Container(
                           decoration: BoxDecoration(
                             color: Colors.white,
-                            borderRadius: BorderRadius.circular(30),
+                            borderRadius: BorderRadius.circular(20),
                             boxShadow: [
-                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                              BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 16, offset: const Offset(0, 6)),
                             ],
-                            border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
                           ),
                           child: TextField(
                             onChanged: (v) => setState(() => _searchQuery = v),
                             decoration: InputDecoration(
-                              hintText: 'Search files',
-                              hintStyle: const TextStyle(color: Color(0xFF000000), fontWeight: FontWeight.w500, fontSize: 15),
-                              prefixIcon: Padding( // Mocking the grey dot from reference
-                                padding: const EdgeInsets.all(16.0),
+                              hintText: 'Search menus...',
+                              hintStyle: TextStyle(color: Colors.black.withValues(alpha: 0.3), fontWeight: FontWeight.w500, fontSize: 16),
+                              prefixIcon: Padding( 
+                                padding: const EdgeInsets.all(18.0),
                                 child: Container(
-                                  decoration: const BoxDecoration(color: Color(0xFF9D9D9D), shape: BoxShape.circle),
+                                  decoration: const BoxDecoration(color: Color(0xFFC4C4C4), shape: BoxShape.circle),
                                   width: 8, height: 8,
                                 ),
                               ),
-                              suffixIcon: const Icon(Icons.tune_rounded, color: Color(0xFF9D9D9D), size: 20),
+                              suffixIcon: const Icon(Icons.search_rounded, color: Color(0xFFC4C4C4), size: 22),
                               border: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                              contentPadding: const EdgeInsets.symmetric(vertical: 18),
                             ),
                           ),
                         ),
                         const SizedBox(height: 28),
 
-                        // 4. Recent Files & Folders Card
+                        // 4. Hero Card
                         Container(
                           width: double.infinity,
-                          padding: const EdgeInsets.all(24),
+                          padding: const EdgeInsets.all(28),
                           decoration: BoxDecoration(
-                            color: const Color(0xFFC0A9FE), // Soft purple matching mockup
-                            borderRadius: BorderRadius.circular(24),
+                            gradient: const LinearGradient(
+                              colors: [Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                            ),
+                            borderRadius: BorderRadius.circular(32),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withValues(alpha: 0.05),
+                                blurRadius: 24,
+                                offset: const Offset(0, 12),
+                              ),
+                            ],
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -236,19 +292,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                   ),
                                   const SizedBox(height: 24),
                                   Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                                     decoration: BoxDecoration(
                                       color: Colors.white,
                                       borderRadius: BorderRadius.circular(30),
+                                      boxShadow: [
+                                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 4)),
+                                      ],
                                     ),
                                     child: Row(
+                                      mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const SizedBox(width: 16),
-                                        const Expanded(child: Text('See All', style: TextStyle(color: Color(0xFF000000), fontSize: 16, fontWeight: FontWeight.w600))),
+                                        const Text('See All', style: TextStyle(color: Color(0xFF000000), fontSize: 15, fontWeight: FontWeight.w700)),
+                                        const SizedBox(width: 8),
                                         Container(
-                                          padding: const EdgeInsets.all(10),
-                                          decoration: const BoxDecoration(color: Color(0xFF000000), shape: BoxShape.circle),
-                                          child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                                          padding: const EdgeInsets.all(6),
+                                          decoration: BoxDecoration(
+                                            color: Colors.black.withValues(alpha: 0.05),
+                                            shape: BoxShape.circle,
+                                          ),
+                                          child: const Icon(Icons.arrow_forward_ios_rounded, color: Colors.black, size: 14),
                                         ),
                                       ],
                                     ),
@@ -259,52 +322,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             ],
                           ),
                         ),
+                        const SizedBox(height: 32),
+                        const Text('Quick Activities', style: TextStyle(color: Color(0xFF1E293B), fontSize: 20, fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                        const SizedBox(height: 16),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 3,
+                            crossAxisSpacing: 16,
+                            mainAxisSpacing: 16,
+                            childAspectRatio: 0.9,
+                          ),
+                          itemCount: _filtered.length,
+                          itemBuilder: (context, index) => _MenuCard(item: _filtered[index]),
+                        ),
                         const SizedBox(height: 120), // Bottom padding for floating nav
                       ],
                     ),
                   ),
                 ),
                 // 7. Floating Bottom Nav Bar
-                Positioned(
-                  bottom: 24,
-                  left: 24,
-                  right: 24,
-                  child: Container(
-                    height: 72,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF000000), // Black
-                      borderRadius: BorderRadius.circular(36),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                          child: const Icon(Icons.home_rounded, color: Color(0xFF000000), size: 26),
-                        ),
-                        const Icon(Icons.folder_open_rounded, color: Colors.white, size: 26),
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(color: Color(0xFF2050E4), shape: BoxShape.circle),
-                          child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
-                        ),
-                        const Icon(Icons.image_outlined, color: Colors.white, size: 26),
-                        GestureDetector(
-                          onTap: () {
-                            if (_user != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (context) => ProfileScreen(user: _user!)),
-                              );
-                            }
-                          },
-                          child: const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
               ],
             ),
     );
@@ -314,16 +352,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return Column(
       children: [
         Container(
-          padding: const EdgeInsets.all(16),
-          decoration: const BoxDecoration(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
             color: Colors.white,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: iconColor.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
           ),
-          child: Icon(iconData, color: iconColor, size: 24),
+          child: Icon(iconData, color: iconColor, size: 26),
         ),
-        const SizedBox(height: 8),
-        Text(title, style: const TextStyle(color: Color(0xFF000000), fontSize: 12, fontWeight: FontWeight.bold)),
-        Text(subtitle, style: const TextStyle(color: Color(0xFF666666), fontSize: 11, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 12),
+        Text(title, style: const TextStyle(color: Color(0xFF1E293B), fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+        const SizedBox(height: 2),
+        Text(subtitle, style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 12, fontWeight: FontWeight.w600)),
       ],
     );
   }
@@ -359,23 +405,23 @@ class _MenuCardState extends State<_MenuCard> {
         duration: const Duration(milliseconds: 100),
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(18),
+            color: Colors.white, // Reverted to original color as per instruction interpretation
+            borderRadius: BorderRadius.circular(22), // Reverted to original borderRadius
             boxShadow: [
-              BoxShadow(color: Colors.black.withOpacity(0.06), blurRadius: 10, offset: const Offset(0, 4)),
+              BoxShadow(color: Colors.black.withValues(alpha: 0.03), blurRadius: 20, offset: const Offset(0, 8)),
             ],
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Container(
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF26522).withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(14),
+                  color: const Color(0xFF2050E4).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(16),
                 ),
-                child: Icon(icon, color: const Color(0xFFF26522), size: 26),
+                child: Icon(icon, color: const Color(0xFF2050E4), size: 26),
               ),
               const SizedBox(height: 10),
               Padding(
@@ -385,7 +431,13 @@ class _MenuCardState extends State<_MenuCard> {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF2D3748), height: 1.3),
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600, // Changed from w700 to w600 for SF Pro feel
+                    letterSpacing: -0.1, // Adjusted letter spacing for SF Pro feel
+                    color: Color(0xFF1E293B),
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],
@@ -443,26 +495,24 @@ class _DashboardSkeleton extends StatelessWidget {
                 const SizedBox(height: 28),
 
                 // 4. Primary Card Skeleton
-                const _ShimmerBox(width: double.infinity, height: 180, borderRadius: 24),
+                const _ShimmerBox(width: double.infinity, height: 180, borderRadius: 32),
                 const SizedBox(height: 24),
-
+                              
                 // 5. Splitter Line Skeleton
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Expanded(child: _ShimmerBox(width: double.infinity, height: 1, borderRadius: 0)),
-                    SizedBox(width: 12),
-                    _ShimmerBox(width: 120, height: 26, borderRadius: 13),
-                    SizedBox(width: 12),
-                    Expanded(child: _ShimmerBox(width: double.infinity, height: 1, borderRadius: 0)),
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.2), thickness: 1)),
+                    const SizedBox(width: 16),
+                    const _ShimmerBox(width: 120, height: 26, borderRadius: 20),
+                    const SizedBox(width: 16),
+                    Expanded(child: Divider(color: Colors.grey.withValues(alpha: 0.2), thickness: 1)),
                   ],
                 ),
                 const SizedBox(height: 24),
 
-                // 6. Secondary Card Skeleton
-                const _ShimmerBox(width: double.infinity, height: 220, borderRadius: 24),
-                
-                const SizedBox(height: 120), // Bottom padding
+                // 6. Viewed Links Skeleton
+                const _ShimmerBox(width: double.infinity, height: 150, borderRadius: 24),
+                const SizedBox(height: 32), // Bottom padding
               ],
             ),
           ),

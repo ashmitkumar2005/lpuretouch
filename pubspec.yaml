@@ -47,3 +47,11 @@ flutter:
     - family: Virgo
       fonts:
         - asset: assets/fonts/virgo.ttf
+    - family: SF Pro Display
+      fonts:
+        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Regular.otf
+          weight: 400
+        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Medium.otf
+          weight: 500
+        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Bold.otf
+          weight: 700

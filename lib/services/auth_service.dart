@@ -9,6 +9,10 @@ class AuthService {
       'https://ums.lpu.in/umswebservice/umswebservice.svc/PVR';
   static const String _dexUrl =
       'https://ums.lpu.in/umswebservice/umswebservice.svc/GetDEx';
+  static const String _createTokenUrl =
+      'https://mobileapi.lpu.in/security/createToken';
+  static const String _profileQrUrl =
+      'https://mobileapi.lpu.in/api/Student/GetProfile';
 
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -65,6 +69,7 @@ class AuthService {
 
           await _storage.write(key: 'lpu_token', value: token);
           await _storage.write(key: 'lpu_userId', value: userId);
+          await _storage.write(key: 'lpu_password', value: password);
           await _storage.write(key: 'lpu_deviceId', value: deviceId);
           await _storage.write(key: 'lpu_user', value: jsonEncode(tempUser));
           await _storage.write(key: 'lpu_menus', value: pvrResult);
@@ -150,19 +155,71 @@ class AuthService {
 
   // ── Digital ID QR Drawing ───────────────────────────────────────────────
   
+  Future<String?> fetchBearerToken() async {
+    final userId = await _storage.read(key: 'lpu_userId');
+    final password = await _storage.read(key: 'lpu_password');
+    
+    if (userId == null || password == null) {
+      print("[BEARER_TOKEN] Missing credentials. Cannot generate token.");
+      return null;
+    }
+
+    try {
+      print("[BEARER_TOKEN] Fetching new mobile JWT token...");
+      final response = await _dio.post(_createTokenUrl, data: {
+        'userName': userId,
+        'password': password,
+      });
+
+      if (response.statusCode == 200 && response.data != null) {
+        final token = response.data['token'];
+        if (token != null) {
+          final bearerToken = 'Bearer $token';
+          await _storage.write(key: 'lpu_bearer_token', value: bearerToken);
+          print("[BEARER_TOKEN] Successfully obtained and cached mobile token.");
+          return bearerToken;
+        }
+      }
+    } catch (e) {
+      print("[BEARER_TOKEN] Error: $e");
+    }
+    return null;
+  }
+
   Future<String?> fetchStudentQR() async {
     try {
-      final response = await umsRequest(
-        endpoint: '/Student/GetProfile',
-        action: 'get',
+      // 1. Get Bearer Token (JWT)
+      String? bearerToken = await _storage.read(key: 'lpu_bearer_token');
+      if (bearerToken == null) {
+        bearerToken = await fetchBearerToken();
+      }
+
+      if (bearerToken == null) {
+        throw Exception("Failed to obtain Bearer token");
+      }
+
+      // 2. Fetch QR from mobileapi.lpu.in
+      print("[HOSTEL_QR] Fetching QR from mobileapi.lpu.in...");
+      final response = await _dio.get(
+        _profileQrUrl,
+        options: Options(headers: {
+          'Authorization': bearerToken,
+        }),
       );
 
-      // Response format from JS: item1: [{ data: "base64..." }]
-      if (response != null && response['item1'] is List && (response['item1'] as List).isNotEmpty) {
-        return response['item1'][0]['data']?.toString();
+      // Response format: item1: [{ data: "base64..." }]
+      if (response.data != null && response.data['item1'] is List && (response.data['item1'] as List).isNotEmpty) {
+        final qrData = response.data['item1'][0]['data']?.toString();
+        print("[HOSTEL_QR] Successfully fetched QR data (length: ${qrData?.length ?? 0})");
+        return qrData;
       }
     } catch (e) {
       print("[HOSTEL_QR] Error fetching student QR: $e");
+      // If unauthorized, retry once after clearing cached bearer token
+      if (e is DioException && e.response?.statusCode == 401) {
+        print("[HOSTEL_QR] Token expired. Clearing cache.");
+        await _storage.delete(key: 'lpu_bearer_token');
+      }
     }
     return null;
   }

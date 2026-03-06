@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../main.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen>
   bool _obscurePassword = true;
   String? _error;
 
-  static const double _topSlotHeight = 0;
+
 
   late AnimationController _entranceCtrl;
   late AnimationController _floatCtrl;
@@ -97,7 +98,10 @@ class _LoginScreenState extends State<LoginScreen>
           _userIdCtrl.text.trim(), _passwordCtrl.text);
       if (!mounted) return;
       if (result['success'] == true) {
-        Navigator.pushReplacementNamed(context, '/dashboard');
+        if (mounted) {
+          GlobalLayout.of(context)?.refreshAuthState();
+          Navigator.pushReplacementNamed(context, '/dashboard');
+        }
       } else {
         setState(() => _error = result['error'] ?? 'Login failed');
       }
@@ -138,32 +142,26 @@ class _LoginScreenState extends State<LoginScreen>
                       children: [
                         const Text('LPU', style: TextStyle(
                           color: Color(0xFFFF8C00),
-                          fontWeight: FontWeight.bold,
-                          fontSize: 24,
-                          letterSpacing: -0.5,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 28,
+                          letterSpacing: -0.8,
                           fontFamily: 'Virgo',
                         )),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 6),
                         Text('TOUCH', style: TextStyle(
-                          color: const Color(0xFFFF8C00).withAlpha(220),
+                          color: const Color(0xFFFF8C00).withValues(alpha: 0.8),
                           fontWeight: FontWeight.w300,
-                          fontSize: 24,
-                          letterSpacing: 6,
+                          fontSize: 28,
+                          letterSpacing: 10,
                         )),
                       ],
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 32),
 
-                if (_topSlotHeight > 0) ...[
-                  SizedBox(height: _topSlotHeight,
-                      child: const Center(child: SizedBox.shrink())),
-                  const SizedBox(height: 16),
-                ],
-
-                // Logo: floats + pulses
+                // Logo
                 FadeTransition(
                   opacity: _logoFade,
                   child: SlideTransition(
@@ -179,19 +177,18 @@ class _LoginScreenState extends State<LoginScreen>
                       child: Stack(
                         alignment: Alignment.center,
                         children: [
-                          // GPU-Accelerated Glow
                           FadeTransition(
                             opacity: _glowOpacity,
                             child: Container(
-                              width: 160, height: 160,
+                              width: 170, height: 170,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
                                 color: Colors.white,
                                 boxShadow: [
                                   BoxShadow(
-                                    color: const Color(0xFFFF8C00).withAlpha(40),
-                                    blurRadius: 40,
-                                    spreadRadius: 4,
+                                    color: const Color(0xFFFF8C00).withValues(alpha: 0.15),
+                                    blurRadius: 50,
+                                    spreadRadius: 2,
                                   ),
                                 ],
                               ),
@@ -199,7 +196,7 @@ class _LoginScreenState extends State<LoginScreen>
                           ),
                           ClipOval(child: Image.asset(
                             'assets/logo.png',
-                            width: 122, height: 122, fit: BoxFit.cover,
+                            width: 130, height: 130, fit: BoxFit.cover,
                           )),
                         ],
                       ),
@@ -207,7 +204,7 @@ class _LoginScreenState extends State<LoginScreen>
                   ),
                 ),
 
-                const SizedBox(height: 12),
+                const SizedBox(height: 36),
 
                 // Glass card
                 FadeTransition(
@@ -216,138 +213,139 @@ class _LoginScreenState extends State<LoginScreen>
                     position: _cardSlide,
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(40),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.fromLTRB(28, 32, 28, 28),
-                        decoration: BoxDecoration(
-                          // Gradient fill: top bright, bottom slightly dim — like light from above
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              Colors.white.withAlpha(240),
-                              Colors.white.withAlpha(190),
-                            ],
-                          ),
-                          borderRadius: BorderRadius.circular(40),
-                          border: Border.all(
-                            color: Colors.white.withAlpha(230),
-                              width: 1.2,
+                      child: BackdropFilter(
+                        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(32, 40, 32, 36),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.7),
+                            borderRadius: BorderRadius.circular(40),
+                            border: Border.all(
+                              color: Colors.white.withValues(alpha: 0.5),
+                              width: 1.5,
                             ),
                             boxShadow: [
                               BoxShadow(
-                                color: Colors.black.withAlpha(18),
+                                color: Colors.black.withValues(alpha: 0.08),
                                 blurRadius: 40,
-                                offset: const Offset(0, 10),
+                                spreadRadius: 0,
+                                offset: const Offset(0, 20),
                               ),
                             ],
                           ),
-                          child: Stack(children: [
-                            Form(
-                              key: _formKey,
-                              child: Column(children: [
-                              const Text('Welcome Back',
-                                  style: TextStyle(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
-                                  )),
-                              const SizedBox(height: 6),
-                              const Text('Sign in to continue to LPU Touch',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: Color(0xFF6B7280),
-                                  )),
-                              const SizedBox(height: 28),
+                          child: Stack(
+                            children: [
+                              Form(
+                                key: _formKey,
+                                child: Column(
+                                  children: [
+                                    const Text('Welcome Back',
+                                        style: TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w900,
+                                          color: Color(0xFF1E293B),
+                                          letterSpacing: -1.2,
+                                        )),
+                                    const SizedBox(height: 8),
+                                    Text('Sign in to continue to LPU Touch',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          color: const Color(0xFF1E293B).withValues(alpha: 0.4),
+                                          fontWeight: FontWeight.w500,
+                                          letterSpacing: -0.2,
+                                        )),
+                                    const SizedBox(height: 32),
 
-                              if (_error != null) ...[
-                                Container(
-                                  width: double.infinity,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 14, vertical: 12),
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  decoration: BoxDecoration(
-                                    color: Colors.red.withAlpha(25),
-                                    borderRadius: BorderRadius.circular(16),
-                                    border: Border.all(
-                                        color: Colors.red.withAlpha(76)),
-                                  ),
-                                  child: Text(_error!,
-                                      style: const TextStyle(
-                                          color: Colors.red, fontSize: 13)),
-                                ),
-                              ],
+                                    if (_error != null) ...[
+                                      Container(
+                                        width: double.infinity,
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 12),
+                                        margin: const EdgeInsets.only(bottom: 16),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red.withValues(alpha: 0.1),
+                                          borderRadius: BorderRadius.circular(16),
+                                          border: Border.all(
+                                              color: Colors.red.withValues(alpha: 0.3)),
+                                        ),
+                                        child: Text(_error!,
+                                            style: const TextStyle(
+                                                color: Color(0xFFB91C1C), fontSize: 13, fontWeight: FontWeight.w600)),
+                                      ),
+                                    ],
 
-                              _LiquidGlassField(
-                                controller: _userIdCtrl,
-                                hint: 'Registration Number',
-                                prefixIcon: Icons.person_outline,
-                                validator: (v) => v!.isEmpty
-                                    ? 'Registration Number required'
-                                    : null,
-                              ),
-                              const SizedBox(height: 12),
-                              _LiquidGlassField(
-                                controller: _passwordCtrl,
-                                hint: 'Password',
-                                prefixIcon: Icons.key_outlined,
-                                obscure: _obscurePassword,
-                                suffixWidget: GestureDetector(
-                                  onTap: () => setState(() =>
-                                      _obscurePassword = !_obscurePassword),
-                                  child: Padding(
-                                    padding: const EdgeInsets.only(right: 14),
-                                    child: Icon(
-                                      _obscurePassword
-                                          ? Icons.visibility_outlined
-                                          : Icons.visibility_off_outlined,
-                                      color: const Color(0xFF9CA3AF),
-                                      size: 20,
+                                    _LiquidGlassField(
+                                      controller: _userIdCtrl,
+                                      hint: 'Registration Number',
+                                      prefixIcon: Icons.person_outline,
+                                      validator: (v) => v!.isEmpty
+                                          ? 'Registration Number required'
+                                          : null,
                                     ),
-                                  ),
+                                    const SizedBox(height: 12),
+                                    _LiquidGlassField(
+                                      controller: _passwordCtrl,
+                                      hint: 'Password',
+                                      prefixIcon: Icons.key_outlined,
+                                      obscure: _obscurePassword,
+                                      suffixWidget: GestureDetector(
+                                        onTap: () => setState(() =>
+                                            _obscurePassword = !_obscurePassword),
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(right: 14),
+                                          child: Icon(
+                                            _obscurePassword
+                                                ? Icons.visibility_outlined
+                                                : Icons.visibility_off_outlined,
+                                            color: const Color(0xFF9CA3AF),
+                                            size: 20,
+                                          ),
+                                        ),
+                                      ),
+                                      validator: (v) =>
+                                          v!.isEmpty ? 'Password required' : null,
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    _AnimatedButton(
+                                        loading: _loading, onTap: _login),
+
+                                    const SizedBox(height: 20),
+                                    const Text('Forgot Password?',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Color(0xFF6B7280))),
+                                    const SizedBox(height: 16),
+                                    Divider(
+                                        color: const Color(0xFFE5E7EB).withValues(alpha: 0.8),
+                                        thickness: 1),
+                                    const SizedBox(height: 12),
+                                    const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text('New Here? ',
+                                            style: TextStyle(
+                                                fontSize: 13,
+                                                color: Color(0xFF6B7280))),
+                                        Text('Guest Access',
+                                            style: TextStyle(
+                                              fontSize: 13,
+                                              color: Color(0xFFFF8C00),
+                                              fontWeight: FontWeight.w600,
+                                            )),
+                                      ],
+                                    ),
+                                  ],
                                 ),
-                                validator: (v) =>
-                                    v!.isEmpty ? 'Password required' : null,
                               ),
-                              const SizedBox(height: 20),
-
-                              _AnimatedButton(
-                                  loading: _loading, onTap: _login),
-
-                              const SizedBox(height: 20),
-                              const Text('Forgot Password?',
-                                  style: TextStyle(
-                                      fontSize: 13,
-                                      color: Color(0xFF6B7280))),
-                              const SizedBox(height: 16),
-                              Divider(
-                                  color: const Color(0xFFE5E7EB).withAlpha(200),
-                                  thickness: 1),
-                              const SizedBox(height: 12),
-                              const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Text('New Here? ',
-                                      style: TextStyle(
-                                          fontSize: 13,
-                                          color: Color(0xFF6B7280))),
-                                  Text('Guest Access',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: Color(0xFFFF8C00),
-                                        fontWeight: FontWeight.w600,
-                                      )),
-                                ],
-                              ),
-                            ]),
-                          ),  // close Form
-                         ]),  // close Stack children
-                        ),    // close Container
-                    ),        // close ClipRRect
-                  ),          // close SlideTransition child
-                ),            // close FadeTransition child
-
-
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
                 const SizedBox(height: 32),
               ],
             ),
@@ -356,7 +354,6 @@ class _LoginScreenState extends State<LoginScreen>
       ),
     );
   }
-
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -459,120 +456,106 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                     // Base unfocused background (Static)
                     Container(
                       decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.white.withAlpha(240),
-                            Colors.white.withAlpha(190),
-                          ],
+                        color: const Color(0xFFF8FAFC).withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(
+                          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                          width: 1.0,
                         ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                    ),
+                    // GPU-Accelerated Focused Background Glow
+                    FadeTransition(
+                      opacity: _glowOpacity,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.8),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
-                            color: Colors.white.withAlpha(220),
-                            width: 1.0,
+                            color: const Color(0xFFFF8C00),
+                            width: 1.5,
                           ),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha(12),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              color: const Color(0xFFFF8C00).withValues(alpha: 0.2),
+                              blurRadius: 15,
+                              spreadRadius: 0,
                             ),
                           ],
                         ),
                       ),
-                      // GPU-Accelerated Focused Background Glow
-                      FadeTransition(
-                        opacity: _glowOpacity,
-                        child: Container(
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              begin: Alignment.topCenter,
-                              end: Alignment.bottomCenter,
-                              colors: [
-                                Colors.white.withAlpha(170),
-                                Colors.white.withAlpha(120),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: const Color(0xFFFF8C00),
-                              width: 1.5,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: const Color(0xFFFF8C00).withAlpha(50),
-                                blurRadius: 12,
-                                spreadRadius: 0,
-                              ),
-                            ],
-                          ),
+                    ),
+                    // Top specular highlight
+                    Positioned(
+                      top: 0, left: 12, right: 12,
+                      child: Container(
+                        height: 1,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.transparent,
+                            Colors.white.withValues(alpha: 0.85),
+                            Colors.transparent,
+                          ]),
                         ),
                       ),
-                        // Top specular highlight
-                        Positioned(
-                          top: 0, left: 12, right: 12,
-                          child: Container(
-                            height: 1,
-                            decoration: BoxDecoration(
-                              gradient: LinearGradient(colors: [
-                                Colors.transparent,
-                                Colors.white.withAlpha(220),
-                                Colors.transparent,
-                              ]),
-                            ),
-                          ),
-                        ),
-                        // Text field
-                        SizedBox.expand(
-                          child: TextFormField(
-                            controller: widget.controller,
-                            focusNode: _focus,
-                            obscureText: widget.obscure,
-                            textAlignVertical: TextAlignVertical.center,
-                            validator: (v) {
-                              final err = widget.validator?.call(v);
-                              _triggerError(err);
-                              return err;
-                            },
-                            style: const TextStyle(
-                                color: Color(0xFF1A1A2E), fontSize: 15),
-                            decoration: InputDecoration(
-                              hintText: widget.hint,
-                              hintStyle: TextStyle(
-                                  color:
-                                      const Color(0xFF1A1A2E).withAlpha(100),
-                                  fontSize: 15),
-                              prefixIcon: AnimatedBuilder(
-                                animation: _glowOpacity,
-                                builder: (context, child) => Icon(
-                                  widget.prefixIcon,
-                                  color: Color.lerp(
-                                    const Color(0xFF9CA3AF),
-                                    const Color(0xFFFF8C00),
-                                    _glowOpacity.value * 0.6,
-                                  ),
-                                  size: 20,
-                                ),
+                    ),
+                    // Text field
+                    SizedBox.expand(
+                      child: TextFormField(
+                        controller: widget.controller,
+                        focusNode: _focus,
+                        obscureText: widget.obscure,
+                        textAlignVertical: TextAlignVertical.center,
+                        validator: (v) {
+                          final err = widget.validator?.call(v);
+                          _triggerError(err);
+                          return err;
+                        },
+                        style: const TextStyle(
+                            color: Color(0xFF1A1A2E), fontSize: 15),
+                        decoration: InputDecoration(
+                          hintText: widget.hint,
+                          hintStyle: TextStyle(
+                              color:
+                                  const Color(0xFF1A1A2E).withValues(alpha: 0.4),
+                              fontSize: 15),
+                          prefixIcon: AnimatedBuilder(
+                            animation: _glowOpacity,
+                            builder: (context, child) => Icon(
+                              widget.prefixIcon,
+                              color: Color.lerp(
+                                const Color(0xFF9CA3AF),
+                                const Color(0xFFFF8C00),
+                                _glowOpacity.value * 0.6,
                               ),
-                              suffixIcon: widget.suffixWidget,
-                              border: InputBorder.none,
-                              isDense: true,
-                              errorStyle: const TextStyle(
-                                  height: 0,
-                                  fontSize: 0,
-                                  color: Colors.transparent),
-                              errorMaxLines: 1,
-                              contentPadding: EdgeInsets.zero,
+                              size: 20,
                             ),
                           ),
+                          suffixIcon: widget.suffixWidget,
+                          border: InputBorder.none,
+                          isDense: true,
+                          errorStyle: const TextStyle(
+                              height: 0,
+                              fontSize: 0,
+                              color: Colors.transparent),
+                          errorMaxLines: 1,
+                          contentPadding: EdgeInsets.zero,
                         ),
-                      ],
-                    ), // Stack
-                  ), // SizedBox
-              ), // ClipRRect
-            ), // RepaintBoundary
-          ), // AnimatedBuilder
+                      ),
+                    ),
+                  ],
+                ), // Stack
+              ), // SizedBox
+            ), // ClipRRect
+          ), // RepaintBoundary
+        ), // AnimatedBuilder
         // ── Styled error message ─────────────────────────────
         if (_errorText != null)
           Padding(
@@ -597,7 +580,6 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
     );
   }
 }
-
 
 // Animated Sign In button
 class _AnimatedButton extends StatefulWidget {
@@ -641,65 +623,71 @@ class _AnimatedButtonState extends State<_AnimatedButton>
               width: double.infinity,
               height: 56,
               decoration: BoxDecoration(
-                // Left-to-right gradient for button premium look
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                    colors: widget.loading
-                        ? [
-                            Colors.black.withAlpha(160),
-                            Colors.black.withAlpha(130),
-                          ]
-                        : [
-                            const Color(0xFF1A1A1A),
-                            const Color(0xFF0A0A0A),
-                          ],
-                  ),
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: Colors.white.withAlpha(30),
-                    width: 1,
-                  ),
+                  colors: widget.loading
+                      ? [
+                          Colors.black.withValues(alpha: 0.6),
+                          Colors.black.withValues(alpha: 0.5),
+                        ]
+                      : [
+                          const Color(0xFF1E293B),
+                          const Color(0xFF0F172A),
+                        ],
                 ),
-                child: Stack(
-                  children: [
-                    // Top specular highlight
-                    Positioned(
-                      top: 0, left: 20, right: 20,
-                      child: Container(
-                        height: 1.5,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            Colors.transparent,
-                            Colors.white.withAlpha(70),
-                            Colors.transparent,
-                          ]),
-                        ),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.1),
+                  width: 1,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFF0F172A).withValues(alpha: 0.2),
+                    blurRadius: 20,
+                    offset: const Offset(0, 10),
+                  ),
+                ],
+              ),
+              child: Stack(
+                children: [
+                  // Top specular highlight
+                  Positioned(
+                    top: 0, left: 20, right: 20,
+                    child: Container(
+                      height: 1.5,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(colors: [
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: 0.3),
+                          Colors.transparent,
+                        ]),
                       ),
                     ),
-                    Center(
-                      child: widget.loading
-                          ? const SizedBox(
-                              height: 24, width: 24,
-                              child: CircularProgressIndicator(
-                                  color: Color(0xFFFF8C00), strokeWidth: 2),
-                            )
-                          : const Text(
-                              'Sign In',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.0,
-                              ),
+                  ),
+                  Center(
+                    child: widget.loading
+                        ? const SizedBox(
+                            height: 24, width: 24,
+                            child: CircularProgressIndicator(
+                                color: Color(0xFFFF8C00), strokeWidth: 2),
+                          )
+                        : const Text(
+                            'Sign In',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 17,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.5,
                             ),
-                    ),
-                  ],
-                ),
+                          ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
+      ),
     );
   }
 }

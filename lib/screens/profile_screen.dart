@@ -1,5 +1,5 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/auth_service.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -11,6 +11,7 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     // Extract info
     final name = user['StudentName'] ?? user['ExtractedName'] ?? 'Student';
+    final initials = name.toString().trim().split(' ').take(2).map((s) => s.isNotEmpty ? s[0].toUpperCase() : '').join();
     final regNo = (user['RegNo'] ?? user['RegisterationNumber'] ?? 'N/A').toString();
     final email = (user['StudentEmail'] ?? user['Email'] ?? 'N/A').toString();
     final program = (user['ProgramName'] ?? user['Program'] ?? 'N/A').toString();
@@ -24,13 +25,7 @@ class ProfileScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: _CircularActionButton(
-            icon: Icons.arrow_back,
-            onTap: () => Navigator.pop(context),
-          ),
-        ),
+        automaticallyImplyLeading: false, // Prevents default back button
         centerTitle: true,
         title: const Text(
           'Account',
@@ -40,18 +35,25 @@ class ProfileScreen extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: _CircularActionButton(
-              icon: Icons.qr_code_scanner_outlined,
-              onTap: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const _QRScannerScreen()),
+              icon: Icons.qr_code_outlined,
+              onTap: () => showModalBottomSheet(
+                context: context,
+                isScrollControlled: true,
+                backgroundColor: Colors.transparent,
+                builder: (context) => _DigitalIDModal(user: user),
               ),
             ),
           ),
           Padding(
             padding: const EdgeInsets.all(8.0),
             child: _CircularActionButton(
-              icon: Icons.edit_outlined,
-              onTap: () {},
+              icon: Icons.logout_outlined,
+              onTap: () async {
+                await AuthService().logout();
+                if (context.mounted) {
+                  Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+                }
+              },
             ),
           ),
         ],
@@ -70,24 +72,45 @@ class ProfileScreen extends StatelessWidget {
                   Container(
                     width: 110,
                     height: 110,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFA3E635), // Life green color from mockup
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFE2E8F0), Color(0xFFCBD5E1)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
                       shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 20,
+                          offset: const Offset(0, 10),
+                        ),
+                      ],
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: const TextStyle(
+                          fontSize: 40,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF475569),
+                          letterSpacing: -1,
+                        ),
+                      ),
                     ),
                   ),
-                  const Icon(Icons.person, size: 70, color: Colors.white),
                 ],
               ),
             ),
             const SizedBox(height: 16),
             Text(
               name,
-              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 24, letterSpacing: -0.5),
+              style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 26, letterSpacing: -0.8),
             ),
             const SizedBox(height: 4),
             Text(
               email != 'N/A' ? email : regNo,
-              style: TextStyle(color: Colors.black.withOpacity(0.5), fontSize: 16),
+              style: TextStyle(color: Colors.black.withValues(alpha: 0.4), fontSize: 15, fontWeight: FontWeight.w500),
             ),
             const SizedBox(height: 24),
 
@@ -99,10 +122,10 @@ class ProfileScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(24),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 20,
-                    spreadRadius: 5,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 30,
+                    spreadRadius: 0,
+                    offset: const Offset(0, 12),
                   ),
                 ],
               ),
@@ -134,19 +157,19 @@ class ProfileScreen extends StatelessWidget {
                                 Expanded(
                                   child: Text(
                                     program,
-                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16), // Slightly smaller to fit better
+                                    maxLines: 2, // Allow up to 2 lines
+                                    overflow: TextOverflow.visible, // Let it wrap naturally within the 2 lines
                                   ),
                                 ),
                                 Container(
                                   margin: const EdgeInsets.only(left: 8),
                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: primaryColor,
-                                    borderRadius: BorderRadius.circular(20),
+                                    color: primaryColor.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(8),
                                   ),
-                                  child: const Text('Active', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                                  child: const Text('Active', style: TextStyle(color: primaryColor, fontSize: 12, fontWeight: FontWeight.w700)),
                                 ),
                               ],
                             ),
@@ -173,14 +196,9 @@ class ProfileScreen extends StatelessWidget {
                       children: [
                         const Text(
                           'View Academic Details',
-                          style: TextStyle(fontWeight: FontWeight.bold),
+                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
                         ),
-                        Container(
-                          width: 32,
-                          height: 32,
-                          decoration: const BoxDecoration(color: Colors.black, shape: BoxShape.circle),
-                          child: const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
-                        ),
+                        Icon(Icons.arrow_forward_ios, size: 16, color: Colors.black.withValues(alpha: 0.25)),
                       ],
                     ),
                   ),
@@ -229,13 +247,25 @@ class ProfileScreen extends StatelessWidget {
             _AccountActionTile(
               icon: Icons.meeting_room_outlined,
               iconColor: const Color(0xFFEC4899),
-              title: "Stay Details",
-              subtitle: "Hostel, Messages, RmsStatus",
-              onTap: () => _showDetailsModal(context, "Stay Details", {
-                "Hostel": user['Hostel']?.toString() ?? 'N/A',
-                "Messages": user['MyMessagesCount']?.toString() ?? '0',
-                "RMS Status": user['RmsStatusCount']?.toString() ?? 'N/A',
-              }),
+              title: "Stay Information",
+              subtitle: "Hostel, Room Status & More",
+              onTap: () {
+                final Map<String, String> stayDetails = {};
+                final hostelRaw = user['Hostel']?.toString() ?? 'N/A';
+                
+                // Parse Hostel string for better headings
+                if (hostelRaw.toLowerCase().contains('boys hostel')) {
+                  stayDetails['Boys Hostel'] = hostelRaw.replaceAll(RegExp(r'Boys Hostel', caseSensitive: false), '').trim();
+                } else if (hostelRaw.toLowerCase().contains('girls hostel')) {
+                  stayDetails['Girls Hostel'] = hostelRaw.replaceAll(RegExp(r'Girls Hostel', caseSensitive: false), '').trim();
+                } else {
+                  stayDetails['Hostel Details'] = hostelRaw;
+                }
+                
+                stayDetails['Room Status'] = user['RmsStatusCount']?.toString() ?? 'N/A';
+
+                _showDetailsModal(context, "Stay Information", stayDetails);
+              },
             ),
             
             const SizedBox(height: 120), // Bottom padding for nav bar
@@ -391,128 +421,62 @@ class _CircularActionButton extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        width: 44,
-        height: 44,
+        width: 48,
+        height: 48,
         decoration: BoxDecoration(
           color: Colors.white,
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.black.withOpacity(0.08)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.06),
+              blurRadius: 15,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child: Icon(icon, color: Colors.black, size: 20),
+        child: Icon(icon, color: Colors.black.withValues(alpha: 0.8), size: 22),
       ),
     );
   }
 }
 
-class _QRScannerScreen extends StatefulWidget {
-  const _QRScannerScreen();
+class _DigitalIDModal extends StatefulWidget {
+  final Map<String, dynamic> user;
+  const _DigitalIDModal({required this.user});
 
   @override
-  State<_QRScannerScreen> createState() => _QRScannerScreenState();
+  State<_DigitalIDModal> createState() => _DigitalIDModalState();
 }
 
-class _QRScannerScreenState extends State<_QRScannerScreen> {
-  final MobileScannerController controller = MobileScannerController();
-  bool _isProcessing = false;
+class _DigitalIDModalState extends State<_DigitalIDModal> {
+  String? _qrBase64;
+  bool _isLoading = true;
+  String? _error;
 
-  void _onDetect(BarcodeCapture capture) async {
-    if (_isProcessing) return;
-    
-    final List<Barcode> barcodes = capture.barcodes;
-    if (barcodes.isEmpty) return;
-    
-    final String? code = barcodes.first.rawValue;
-    if (code == null || code.isEmpty) return;
+  @override
+  void initState() {
+    super.initState();
+    _loadQR();
+  }
 
-    setState(() => _isProcessing = true);
-    controller.stop();
-
-    // Call API
-    final result = await AuthService().markHostelAttendance(code);
-    
-    if (!mounted) return;
-
-    // Show result
-    await showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (context) => _QRResultModal(result: result),
-    );
-
+  Future<void> _loadQR() async {
+    final qr = await AuthService().fetchStudentQR();
     if (mounted) {
-      Navigator.pop(context); // Close scanner after showing result
+      setState(() {
+        _qrBase64 = qr;
+        _isLoading = false;
+        if (qr == null) _error = "Failed to fetch Digital ID";
+      });
     }
   }
 
   @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          MobileScanner(
-            controller: controller,
-            onDetect: _onDetect,
-          ),
-          // Scoped scanning area overlay
-          Center(
-            child: Container(
-              width: 250,
-              height: 250,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.white, width: 2),
-                borderRadius: BorderRadius.circular(24),
-              ),
-            ),
-          ),
-          // Back Button
-          Positioned(
-            top: 40,
-            left: 20,
-            child: SafeArea(
-              child: _CircularActionButton(
-                icon: Icons.close,
-                onTap: () => Navigator.pop(context),
-              ),
-            ),
-          ),
-          // Info Text
-          const Align(
-            alignment: Alignment(0, 0.5),
-            child: Text(
-              'Align QR code within the frame',
-              style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QRResultModal extends StatelessWidget {
-  final Map<String, dynamic> result;
-  const _QRResultModal({required this.result});
-
-  @override
-  Widget build(BuildContext context) {
-    final status = result['status']?.toString() ?? '0';
-    final isSuccess = status == '1';
-    final message = _cleanString(result['message']?.toString() ?? 'Unknown error');
-    final studentName = result['studentName']?.toString() ?? 'Student';
-    // LPU provides a hex color in colorCode, default to green for success, red for fail
-    final colorHex = result['colorCode']?.toString() ?? (isSuccess ? '#10B981' : '#EF4444');
-    final color = Color(int.parse(colorHex.replaceAll('#', '0xFF')));
+    final name = widget.user['StudentName'] ?? widget.user['ExtractedName'] ?? 'Student';
+    final regNo = (widget.user['RegNo'] ?? widget.user['RegisterationNumber'] ?? '').toString();
 
     return Container(
-      padding: const EdgeInsets.all(32),
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
@@ -520,42 +484,79 @@ class _QRResultModal extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // Handle
           Container(
-            width: 80,
-            height: 80,
+            width: 40,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 24),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              isSuccess ? Icons.check_circle_outline : Icons.error_outline,
-              color: color,
-              size: 48,
+              color: Colors.black.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(2),
             ),
           ),
-          const SizedBox(height: 24),
-          Text(
-            isSuccess ? 'Success' : 'Attendance Failed',
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+          const Text(
+            'Digital ID',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: Colors.black),
           ),
           const SizedBox(height: 8),
           Text(
-            studentName,
-            style: TextStyle(color: Colors.black.withOpacity(0.5), fontWeight: FontWeight.bold),
+            'Scan this QR for attendance',
+            style: TextStyle(color: Colors.black.withOpacity(0.5), fontWeight: FontWeight.w500),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
+          
+          // QR Card
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
               color: const Color(0xFFF9F9F9),
-              borderRadius: BorderRadius.circular(20),
+              borderRadius: BorderRadius.circular(28),
+              border: Border.all(color: Colors.black.withOpacity(0.05)),
             ),
-            child: Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, height: 1.5),
+            child: Column(
+              children: [
+                if (_isLoading)
+                  const SizedBox(
+                    height: 200,
+                    child: Center(child: CircularProgressIndicator(color: Colors.black)),
+                  )
+                else if (_error != null)
+                  SizedBox(
+                    height: 200,
+                    child: Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.error_outline, color: Colors.red, size: 48),
+                          const SizedBox(height: 16),
+                          Text(_error!, style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                    ),
+                  )
+                else if (_qrBase64 != null)
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.memory(
+                      base64Decode(_qrBase64!),
+                      height: 200,
+                      width: 200,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                const SizedBox(height: 24),
+                Text(
+                  name,
+                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+                Text(
+                  regNo,
+                  style: TextStyle(color: Colors.black.withOpacity(0.4), fontWeight: FontWeight.w600),
+                ),
+              ],
             ),
           ),
+          
           const SizedBox(height: 32),
           SizedBox(
             width: double.infinity,
@@ -568,16 +569,13 @@ class _QRResultModal extends StatelessWidget {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 elevation: 0,
               ),
-              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              child: const Text('Dismiss', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ),
+          const SizedBox(height: 16),
         ],
       ),
     );
-  }
-
-  String _cleanString(String val) {
-    return val.replaceAll(RegExp(r'Dear Student(\(\d+\))?'), '').trim();
   }
 }
 
@@ -610,9 +608,9 @@ class _AccountActionTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(24),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
