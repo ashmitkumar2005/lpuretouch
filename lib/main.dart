@@ -1,9 +1,18 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'services/auth_service.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Auto-logout on app start if running on Linux to ensure fresh session for testing
+  if (Platform.isLinux) {
+    print("[INIT] Linux detected. Clearing session for fresh login...");
+    await AuthService().logout();
+  }
+  
   runApp(const LpuTouchApp());
 }
 

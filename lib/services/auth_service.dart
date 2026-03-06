@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -15,11 +16,12 @@ class AuthService {
   // ── Login ────────────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> login(String userId, String password) async {
+    final deviceId = 'flutter-${DateTime.now().millisecondsSinceEpoch}';
     final loginData = {
       'UserId': userId,
       'password': password,
       'Identity': 'aphone',
-      'DeviceId': 'flutter-${DateTime.now().millisecondsSinceEpoch}',
+      'DeviceId': deviceId,
       'PlayerId': 'null',
     };
 
@@ -63,6 +65,7 @@ class AuthService {
 
           await _storage.write(key: 'lpu_token', value: token);
           await _storage.write(key: 'lpu_userId', value: userId);
+          await _storage.write(key: 'lpu_deviceId', value: deviceId);
           await _storage.write(key: 'lpu_user', value: jsonEncode(tempUser));
           await _storage.write(key: 'lpu_menus', value: pvrResult);
 
@@ -84,83 +87,84 @@ class AuthService {
   }
 
   // ── Fetch Full Student Profile ────────────────────────────────────────────
-  // Calls the encrypted GetDEx endpoint for Student/GetProfile, and if it fails or 404s,
-  // structurally falls back to scanning the original PVR login response (`lpu_menus`) 
-  // to extract the true student name.
+  // Uses the native StudentBasicInfoForService endpoint on umswebservice.svc 
+  // to completely bypass the Cloudflare Bot Protection on mobileapi.lpu.in.
   Future<void> fetchProfile() async {
     final token = await _storage.read(key: 'lpu_token');
-    if (token == null) {
-      print("[PROFILE] No token found in storage. Aborting fetch.");
+    final userId = await _storage.read(key: 'lpu_userId');
+    final deviceId = await _storage.read(key: 'lpu_deviceId') ?? 'flutter-123';
+
+    if (token == null || userId == null) {
+      print("[PROFILE] Missing credentials in storage. Aborting fetch.");
       return;
     }
 
     try {
-      print("[PROFILE] Fetching via secure GetDEx wrapper...");
-      final respData = await umsRequest(
-        endpoint: 'Student/GetProfile',
-        action: 'get',
-        data: {},
-      );
+      print("[PROFILE] Fetching StudentProfile from BasicInfo API...");
+      final url = 'https://ums.lpu.in/umswebservice/umswebservice.svc/StudentBasicInfoForService/$userId/$token/$deviceId/null/null';
+      final resp = await _dio.get(url);
 
-      print("[PROFILE] API Success! Data type: ${respData.runtimeType}");
-      
-      if (respData != null) {
-        dynamic parsedData = respData;
-        if (respData is String) {
-          try { parsedData = jsonDecode(respData); } catch(e) {}
-        } else if (respData is Map && respData.containsKey('GetDExResult')) {
-           final dexRes = respData['GetDExResult'];
-           parsedData = (dexRes is String) ? jsonDecode(dexRes) : dexRes;
-        }
-
-        Map<String, dynamic>? profileData;
-        if (parsedData is List && parsedData.isNotEmpty) {
-          profileData = parsedData[0] as Map<String, dynamic>;
-        } else if (parsedData is Map) {
-          profileData = parsedData as Map<String, dynamic>;
-        }
-
-        if (profileData != null) {
-          await _updateStoredUserName(profileData['StudentName'] ?? profileData['Name'] ?? profileData['FullName']);
-          return; // Success, exit early
-        }
+      if (resp.statusCode == 200 && resp.data != null) {
+        await _processProfileResult(resp.data);
       }
     } catch (e) {
-      print("[PROFILE] Main API Error: $e. Falling back to PVR Cache...");
-    }
-
-    // --- FALLBACK: Extract name from the original PVR Response stored in lpu_menus ---
-    try {
-      final menusJson = await _storage.read(key: 'lpu_menus');
-      if (menusJson != null) {
-        final List<dynamic> pvrResult = jsonDecode(menusJson);
-        for (var item in pvrResult) {
-          if (item is Map) {
-            final possibleName = item['Name'] ?? 
-                                 item['StudentName'] ?? 
-                                 item['ApplicantName'] ??
-                                 item['FullName'] ??
-                                 item['FirstName'];
-            if (possibleName != null && possibleName.toString().isNotEmpty) {
-              print("[PROFILE] Recovered name from PVR Cache: $possibleName");
-              await _updateStoredUserName(possibleName.toString());
-              return;
-            }
-          }
-        }
-      }
-    } catch (e) {
-      print("[PROFILE] Fallback Error: $e");
+      print("[PROFILE] BasicInfo API Error (Dio): $e.");
     }
   }
 
-  Future<void> _updateStoredUserName(String? newName) async {
-      if (newName == null) return;
+  Future<void> _processProfileResult(dynamic rawData) async {
+    print("[PROFILE] RAW BASIC INFO RESPONSE: $rawData");
+    Map<String, dynamic>? profileData;
+    if (rawData is List && rawData.isNotEmpty) {
+      profileData = rawData[0] as Map<String, dynamic>;
+    } else if (rawData is Map) {
+      profileData = rawData as Map<String, dynamic>;
+    }
+
+    if (profileData != null) {
+      if (profileData['Error'] != null && profileData['Error'].toString().trim().isNotEmpty) {
+        print("[PROFILE] Basic Info API returned an Error: ${profileData['Error']}");
+        return;
+      }
+
       final existingJson = await _storage.read(key: 'lpu_user');
       final Map<String, dynamic> existing = existingJson != null ? jsonDecode(existingJson) : {};
-      existing['ExtractedName'] = newName;
+      existing.addAll(profileData);
+
+      String? extractValidString(dynamic val) {
+         if (val == null) return null;
+         final s = val.toString().trim();
+         return s.isEmpty ? null : s;
+      }
+
+      final name = extractValidString(profileData['StudentName']) ?? 
+                   extractValidString(profileData['Name']) ?? 
+                   extractValidString(profileData['FullName']) ?? 
+                   existing['RegNo'];
+                   
+      existing['ExtractedName'] = name;
       await _storage.write(key: 'lpu_user', value: jsonEncode(existing));
-      print("[PROFILE] Self-Healed and saved ExtractedName as $newName");
+      print("[PROFILE] Saved true student profile: $name");
+    }
+  }
+
+  // ── Digital ID QR Drawing ───────────────────────────────────────────────
+  
+  Future<String?> fetchStudentQR() async {
+    try {
+      final response = await umsRequest(
+        endpoint: '/Student/GetProfile',
+        action: 'get',
+      );
+
+      // Response format from JS: item1: [{ data: "base64..." }]
+      if (response != null && response['item1'] is List && (response['item1'] as List).isNotEmpty) {
+        return response['item1'][0]['data']?.toString();
+      }
+    } catch (e) {
+      print("[HOSTEL_QR] Error fetching student QR: $e");
+    }
+    return null;
   }
 
   // ── Generic UMS request (authenticated) ─────────────────────────────────
