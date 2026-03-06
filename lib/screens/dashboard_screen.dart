@@ -69,106 +69,246 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final regNo = _user?['RegNo'] ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F6F9),
+      backgroundColor: const Color(0xFFF9F9F9), // Whitesmoke
       body: _loading
           ? const _DashboardSkeleton()
-          : CustomScrollView(
-              slivers: [
-                // Header
-                SliverToBoxAdapter(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF0D1B2A), Color(0xFF1A2F4A)],
-                      ),
-                    ),
-                    child: SafeArea(
-                      bottom: false,
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+          : Stack(
+              children: [
+                SafeArea(
+                  bottom: false,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // 1. Top User Profile Section
+                        Row(
                           children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Welcome back 👋', style: TextStyle(color: Colors.blue[200], fontSize: 13)),
-                                    const SizedBox(height: 4),
-                                    Text(name, style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                                    if (regNo.isNotEmpty)
-                                      Text(regNo, style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 12, fontFamily: 'monospace')),
-                                  ],
-                                ),
-                                IconButton(
-                                  onPressed: _logout,
-                                  style: IconButton.styleFrom(
-                                    backgroundColor: Colors.white.withOpacity(0.1),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  icon: const Icon(Icons.logout_rounded, color: Colors.white70, size: 20),
-                                  tooltip: 'Sign Out',
-                                ),
-                              ],
+                            CircleAvatar(
+                              radius: 22,
+                              backgroundColor: const Color(0xFF2050E4),
+                              child: Text(name.isNotEmpty ? name[0] : 'U', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                             ),
-                            const SizedBox(height: 16),
-                            // Search bar
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('HI, $name', style: const TextStyle(color: Color(0xFF000000), fontSize: 16, fontWeight: FontWeight.bold)),
+                                  const Text('Storage Used: 75%', style: TextStyle(color: Color(0xFF9D9D9D), fontSize: 13, fontWeight: FontWeight.w500)),
+                                ],
+                              ),
+                            ),
                             Container(
                               decoration: BoxDecoration(
-                                color: Colors.white.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(color: Colors.white.withOpacity(0.12)),
+                                shape: BoxShape.circle,
+                                border: Border.all(color: const Color(0xFFE5E5E5), width: 1.5),
                               ),
-                              child: TextField(
-                                onChanged: (v) => setState(() => _searchQuery = v),
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  hintText: 'Search features...',
-                                  hintStyle: TextStyle(color: Colors.white.withOpacity(0.35), fontSize: 14),
-                                  prefixIcon: Icon(Icons.search, color: Colors.white.withOpacity(0.35), size: 20),
-                                  border: InputBorder.none,
-                                  contentPadding: const EdgeInsets.symmetric(vertical: 14),
-                                ),
+                              child: IconButton(
+                                onPressed: () {},
+                                icon: const Icon(Icons.notifications_none_rounded, color: Color(0xFF000000)),
+                                padding: const EdgeInsets.all(8),
+                                constraints: const BoxConstraints(),
                               ),
                             ),
                           ],
                         ),
-                      ),
+                        const SizedBox(height: 32),
+
+                        // 2. Main Title Area
+                        const Text(
+                          'Welcome to LPU Touch',
+                          style: TextStyle(
+                            color: Color(0xFF000000),
+                            fontSize: 32,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.5,
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // 3. Search Bar
+                        Container(
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(30),
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 10, offset: const Offset(0, 4)),
+                            ],
+                            border: Border.all(color: const Color(0xFFEEEEEE), width: 1),
+                          ),
+                          child: TextField(
+                            onChanged: (v) => setState(() => _searchQuery = v),
+                            decoration: InputDecoration(
+                              hintText: 'Search files',
+                              hintStyle: const TextStyle(color: Color(0xFF000000), fontWeight: FontWeight.w500, fontSize: 15),
+                              prefixIcon: Padding( // Mocking the grey dot from reference
+                                padding: const EdgeInsets.all(16.0),
+                                child: Container(
+                                  decoration: const BoxDecoration(color: Color(0xFF9D9D9D), shape: BoxShape.circle),
+                                  width: 8, height: 8,
+                                ),
+                              ),
+                              suffixIcon: const Icon(Icons.tune_rounded, color: Color(0xFF9D9D9D), size: 20),
+                              border: InputBorder.none,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 28),
+
+                        // 4. Recent Files & Folders Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFC0A9FE), // Soft purple matching mockup
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('Recent Files & Folders', style: TextStyle(color: Color(0xFF000000), fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const Icon(Icons.format_list_bulleted_rounded, color: Color(0xFF000000)),
+                                ],
+                              ),
+                              const SizedBox(height: 24),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  _buildShortcutItem(Icons.folder_copy_rounded, Colors.orangeAccent, 'My Backup', '50.5 GB'),
+                                  _buildShortcutItem(Icons.videocam_rounded, const Color(0xFF2050E4), 'Videos', '10.5 GB'),
+                                  _buildShortcutItem(Icons.description_rounded, Colors.redAccent, 'Projects Files', '600 KB'),
+                                  _buildShortcutItem(Icons.folder_rounded, Colors.amber, 'Photos', '12.5 GB'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // 5. Splitter Line
+                        Row(
+                          children: [
+                            const Expanded(child: Divider(color: Color(0xFFE5E5E5), thickness: 1)),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF9F9F9),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: const Color(0xFFE5E5E5), width: 1),
+                              ),
+                              child: const Text('420 Files • 6 Folder', style: TextStyle(color: Color(0xFF666666), fontSize: 11, fontWeight: FontWeight.bold)),
+                            ),
+                            const Expanded(child: Divider(color: Color(0xFFE5E5E5), thickness: 1)),
+                          ],
+                        ),
+                        const SizedBox(height: 24),
+
+                        // 6. Viewed Links Card
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFFEE68C), // Soft yellow matching mockup
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                          child: Stack(
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Viewed Links', style: TextStyle(color: Color(0xFF000000), fontSize: 20, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 12),
+                                  const SizedBox(
+                                    width: 200,
+                                    child: Text("Links you've previously\nviewed show up here.", 
+                                      style: TextStyle(color: Color(0xFF444444), fontSize: 15, height: 1.4, fontWeight: FontWeight.w500)),
+                                  ),
+                                  const SizedBox(height: 24),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(30),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        const SizedBox(width: 16),
+                                        const Expanded(child: Text('See All', style: TextStyle(color: Color(0xFF000000), fontSize: 16, fontWeight: FontWeight.w600))),
+                                        Container(
+                                          padding: const EdgeInsets.all(10),
+                                          decoration: const BoxDecoration(color: Color(0xFF000000), shape: BoxShape.circle),
+                                          child: const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              // (Placeholder for illustration on right)
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 120), // Bottom padding for floating nav
+                      ],
                     ),
                   ),
                 ),
-
-                // Feature count
-                SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-                  sliver: SliverToBoxAdapter(
-                    child: Text('${_filtered.length} features available',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  ),
-                ),
-
-                // Grid
-                SliverPadding(
-                  padding: const EdgeInsets.all(16),
-                  sliver: SliverGrid(
-                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 3,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: 0.95,
+                // 7. Floating Bottom Nav Bar
+                Positioned(
+                  bottom: 24,
+                  left: 24,
+                  right: 24,
+                  child: Container(
+                    height: 72,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF000000), // Black
+                      borderRadius: BorderRadius.circular(36),
                     ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _MenuCard(item: _filtered[index]),
-                      childCount: _filtered.length,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                          child: const Icon(Icons.home_rounded, color: Color(0xFF000000), size: 26),
+                        ),
+                        const Icon(Icons.folder_open_rounded, color: Colors.white, size: 26),
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: const BoxDecoration(color: Color(0xFF2050E4), shape: BoxShape.circle),
+                          child: const Icon(Icons.add_rounded, color: Colors.white, size: 24),
+                        ),
+                        const Icon(Icons.image_outlined, color: Colors.white, size: 26),
+                        const Icon(Icons.person_outline_rounded, color: Colors.white, size: 26),
+                      ],
                     ),
                   ),
                 ),
               ],
             ),
+    );
+  }
+
+  Widget _buildShortcutItem(IconData iconData, Color iconColor, String title, String subtitle) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(iconData, color: iconColor, size: 24),
+        ),
+        const SizedBox(height: 8),
+        Text(title, style: const TextStyle(color: Color(0xFF000000), fontSize: 12, fontWeight: FontWeight.bold)),
+        Text(subtitle, style: const TextStyle(color: Color(0xFF666666), fontSize: 11, fontWeight: FontWeight.w600)),
+      ],
     );
   }
 }
@@ -248,75 +388,73 @@ class _DashboardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      physics: const NeverScrollableScrollPhysics(),
-      slivers: [
-        // Header Skeleton
-        SliverToBoxAdapter(
-          child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF0D1B2A), Color(0xFF1A2F4A)],
-              ),
-            ),
-            child: SafeArea(
-              bottom: false,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 28),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return Stack(
+      children: [
+        SafeArea(
+          bottom: false,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            physics: const NeverScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. Top Profile Skeleton
+                Row(
                   children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _ShimmerBox(width: 100, height: 14, borderRadius: 4, light: true),
-                            const SizedBox(height: 8),
-                            _ShimmerBox(width: 160, height: 26, borderRadius: 6, light: true),
-                            const SizedBox(height: 8),
-                            _ShimmerBox(width: 80, height: 12, borderRadius: 4, light: true),
-                          ],
-                        ),
-                        _ShimmerBox(width: 44, height: 44, borderRadius: 12, light: true),
-                      ],
+                    const _ShimmerBox(width: 44, height: 44, borderRadius: 22),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: const [
+                          _ShimmerBox(width: 100, height: 16, borderRadius: 4),
+                          SizedBox(height: 6),
+                          _ShimmerBox(width: 140, height: 13, borderRadius: 4),
+                        ],
+                      ),
                     ),
-                    const SizedBox(height: 16),
-                    // Search bar skeleton
-                    _ShimmerBox(width: double.infinity, height: 52, borderRadius: 14, light: true),
+                    const _ShimmerBox(width: 44, height: 44, borderRadius: 22),
                   ],
                 ),
-              ),
+                const SizedBox(height: 32),
+
+                // 2. Title Area Skeleton
+                const _ShimmerBox(width: 250, height: 32, borderRadius: 8),
+                const SizedBox(height: 24),
+
+                // 3. Search Bar Skeleton
+                const _ShimmerBox(width: double.infinity, height: 56, borderRadius: 30),
+                const SizedBox(height: 28),
+
+                // 4. Primary Card Skeleton
+                const _ShimmerBox(width: double.infinity, height: 180, borderRadius: 24),
+                const SizedBox(height: 24),
+
+                // 5. Splitter Line Skeleton
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Expanded(child: _ShimmerBox(width: double.infinity, height: 1, borderRadius: 0)),
+                    SizedBox(width: 12),
+                    _ShimmerBox(width: 120, height: 26, borderRadius: 13),
+                    SizedBox(width: 12),
+                    Expanded(child: _ShimmerBox(width: double.infinity, height: 1, borderRadius: 0)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // 6. Secondary Card Skeleton
+                const _ShimmerBox(width: double.infinity, height: 220, borderRadius: 24),
+                
+                const SizedBox(height: 120), // Bottom padding
+              ],
             ),
           ),
         ),
-
-        // Feature count skeleton
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-          sliver: SliverToBoxAdapter(
-            child: _ShimmerBox(width: 120, height: 14, borderRadius: 4),
-          ),
-        ),
-
-        // Grid skeleton (show 12 items as placeholder)
-        SliverPadding(
-          padding: const EdgeInsets.all(16),
-          sliver: SliverGrid(
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 0.95,
-            ),
-            delegate: SliverChildBuilderDelegate(
-              (context, index) => _ShimmerBox(width: double.infinity, height: double.infinity, borderRadius: 18),
-              childCount: 15,
-            ),
-          ),
+        // 7. Floating Nav Skeleton
+        const Positioned(
+          bottom: 24, left: 24, right: 24,
+          child: _ShimmerBox(width: double.infinity, height: 72, borderRadius: 36),
         ),
       ],
     );
