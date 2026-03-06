@@ -30,7 +30,7 @@ class _LoginScreenState extends State<LoginScreen>
 
   late Animation<double> _logoFade, _textFade, _cardFade;
   late Animation<Offset> _logoSlide, _textSlide, _cardSlide;
-  late Animation<double> _float, _glow;
+  late Animation<double> _float, _glowOpacity;
 
   @override
   void initState() {
@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen>
     _glowCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 2500))
       ..repeat(reverse: true);
-    _glow = Tween<double>(begin: 80, end: 160).animate(
+    _glowOpacity = Tween<double>(begin: 0.3, end: 0.6).animate(
         CurvedAnimation(parent: _glowCtrl, curve: Curves.easeInOut));
 
     Future.delayed(const Duration(milliseconds: 80),
@@ -169,36 +169,40 @@ class _LoginScreenState extends State<LoginScreen>
                   child: SlideTransition(
                     position: _logoSlide,
                     child: AnimatedBuilder(
-                      animation: Listenable.merge([_floatCtrl, _glowCtrl]),
+                      animation: _floatCtrl,
                       builder: (context, child) {
                         return Transform.translate(
                           offset: Offset(0, _float.value),
-                          child: Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              Container(
-                                width: 160, height: 160,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.white
-                                      .withAlpha(_glow.value.toInt()),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: const Color(0xFFFF8C00).withAlpha(30),
-                                      blurRadius: 24 + (_glow.value * 0.1),
-                                      spreadRadius: 2,
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              ClipOval(child: Image.asset(
-                                'assets/logo.png',
-                                width: 122, height: 122, fit: BoxFit.cover,
-                              )),
-                            ],
-                          ),
+                          child: child,
                         );
                       },
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          // GPU-Accelerated Glow
+                          FadeTransition(
+                            opacity: _glowOpacity,
+                            child: Container(
+                              width: 160, height: 160,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.white,
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFFFF8C00).withAlpha(40),
+                                    blurRadius: 40,
+                                    spreadRadius: 4,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          ClipOval(child: Image.asset(
+                            'assets/logo.png',
+                            width: 122, height: 122, fit: BoxFit.cover,
+                          )),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -383,11 +387,11 @@ class _LiquidGlassField extends StatefulWidget {
 }
 
 class _LiquidGlassFieldState extends State<_LiquidGlassField>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late FocusNode _focus;
-  late AnimationController _glowCtrl;
+  late AnimationController _animCtrl;
+  late Animation<double> _glowOpacity;
   late AnimationController _shakeCtrl;
-  late Animation<double> _glow;
   late Animation<double> _shake;
   String? _errorText;
 
@@ -397,14 +401,14 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
     _focus = FocusNode();
 
     // Focus glow animation
-    _glowCtrl = AnimationController(
+    _animCtrl = AnimationController(
         vsync: this, duration: const Duration(milliseconds: 200));
-    _glow = CurvedAnimation(parent: _glowCtrl, curve: Curves.easeOut);
+    _glowOpacity = CurvedAnimation(parent: _animCtrl, curve: Curves.easeOut);
     _focus.addListener(() {
       if (_focus.hasFocus) {
-        _glowCtrl.forward();
+        _animCtrl.forward();
       } else {
-        _glowCtrl.reverse();
+        _animCtrl.reverse();
       }
     });
 
@@ -417,7 +421,7 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
   @override
   void dispose() {
     _focus.dispose();
-    _glowCtrl.dispose();
+    _animCtrl.dispose();
     _shakeCtrl.dispose();
     super.dispose();
   }
@@ -434,62 +438,82 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_glow, _shake]),
-      builder: (context, child) {
-        final focused = _glow.value;
-        final shakeOffset =
-            math.sin(_shake.value * math.pi * 8) * 8 * (1 - _shake.value);
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ── Field with shake wrapper ─────────────────────────
-            Transform.translate(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // ── Field with shake wrapper ─────────────────────────
+        AnimatedBuilder(
+          animation: _shake,
+          builder: (context, child) {
+            final shakeOffset =
+                math.sin(_shake.value * math.pi * 8) * 8 * (1 - _shake.value);
+            return Transform.translate(
               offset: Offset(shakeOffset, 0),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(18),
-                child: BackdropFilter(
-                  filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                  child: Container(
-                    height: 56,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withAlpha(
-                              (200 - focused * 30).toInt()),
-                          Colors.white.withAlpha(
-                              (140 - focused * 20).toInt()),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Color.lerp(
-                          Colors.white.withAlpha(220),
-                          const Color(0xFFFF8C00),
-                          focused,
-                        )!,
-                        width: 1.0 + focused * 0.5,
-                      ),
-                      boxShadow: [
-                        if (focused > 0)
-                          BoxShadow(
-                            color: const Color(0xFFFF8C00)
-                                .withAlpha((focused * 50).toInt()),
-                            blurRadius: 12,
-                            spreadRadius: 0,
+              child: child,
+            );
+          },
+          child: RepaintBoundary( // Prevent blurring recreation during shake
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(18),
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                child: SizedBox(
+                  height: 56,
+                  child: Stack(
+                    children: [
+                      // Base unfocused background (Static)
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [
+                              Colors.white.withAlpha(200),
+                              Colors.white.withAlpha(140),
+                            ],
                           ),
-                        BoxShadow(
-                          color: Colors.black.withAlpha(12),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(
+                            color: Colors.white.withAlpha(220),
+                            width: 1.0,
+                          ),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(12),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                    child: Stack(
-                      children: [
+                      ),
+                      // GPU-Accelerated Focused Background Glow
+                      FadeTransition(
+                        opacity: _glowOpacity,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.white.withAlpha(170),
+                                Colors.white.withAlpha(120),
+                              ],
+                            ),
+                            borderRadius: BorderRadius.circular(18),
+                            border: Border.all(
+                              color: const Color(0xFFFF8C00),
+                              width: 1.5,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: const Color(0xFFFF8C00).withAlpha(50),
+                                blurRadius: 12,
+                                spreadRadius: 0,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                         // Top specular highlight
                         Positioned(
                           top: 0, left: 12, right: 12,
@@ -524,14 +548,17 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                                   color:
                                       const Color(0xFF1A1A2E).withAlpha(100),
                                   fontSize: 15),
-                              prefixIcon: Icon(
-                                widget.prefixIcon,
-                                color: Color.lerp(
-                                  const Color(0xFF9CA3AF),
-                                  const Color(0xFFFF8C00),
-                                  focused * 0.6,
+                              prefixIcon: AnimatedBuilder(
+                                animation: _glowOpacity,
+                                builder: (context, child) => Icon(
+                                  widget.prefixIcon,
+                                  color: Color.lerp(
+                                    const Color(0xFF9CA3AF),
+                                    const Color(0xFFFF8C00),
+                                    _glowOpacity.value * 0.6,
+                                  ),
+                                  size: 20,
                                 ),
-                                size: 20,
                               ),
                               suffixIcon: widget.suffixWidget,
                               border: InputBorder.none,
@@ -546,37 +573,37 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                           ),
                         ),
                       ],
-                    ),
+                    ), // Stack
+                  ), // SizedBox
+                ), // BackdropFilter
+              ), // ClipRRect
+            ), // RepaintBoundary
+          ), // AnimatedBuilder
+        // ── Styled error message ─────────────────────────────
+        if (_errorText != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 8, top: 5),
+            child: Row(
+              children: [
+                const Icon(Icons.info_outline_rounded,
+                    size: 13, color: Color(0xFFE53935)),
+                const SizedBox(width: 4),
+                Text(
+                  _errorText!,
+                  style: const TextStyle(
+                    color: Color(0xFFE53935),
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
-              ),
+              ],
             ),
-            // ── Styled error message ─────────────────────────────
-            if (_errorText != null)
-              Padding(
-                padding: const EdgeInsets.only(left: 8, top: 5),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info_outline_rounded,
-                        size: 13, color: Color(0xFFE53935)),
-                    const SizedBox(width: 4),
-                    Text(
-                      _errorText!,
-                      style: const TextStyle(
-                        color: Color(0xFFE53935),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        );
-      },
+          ),
+      ],
     );
   }
 }
+
 
 // Animated Sign In button
 class _AnimatedButton extends StatefulWidget {
@@ -613,70 +640,71 @@ class _AnimatedButtonState extends State<_AnimatedButton>
       onTapCancel: () => _ctrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(18),
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-            child: Container(
-              width: double.infinity,
-              height: 56,
-              decoration: BoxDecoration(
-                // Left-to-right gradient for button premium look
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: widget.loading
-                      ? [
-                          Colors.black.withAlpha(160),
-                          Colors.black.withAlpha(130),
-                        ]
-                      : [
-                          const Color(0xFF1A1A1A),
-                          const Color(0xFF0A0A0A),
-                        ],
-                ),
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(
-                  color: Colors.white.withAlpha(30),
-                  width: 1,
-                ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withAlpha(80),
-                    blurRadius: 16,
-                    offset: const Offset(0, 4),
+        child: RepaintBoundary( // Caches button contents to avoid blurring dynamically
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+              child: Container(
+                width: double.infinity,
+                height: 56,
+                decoration: BoxDecoration(
+                  // Left-to-right gradient for button premium look
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: widget.loading
+                        ? [
+                            Colors.black.withAlpha(160),
+                            Colors.black.withAlpha(130),
+                          ]
+                        : [
+                            const Color(0xFF1A1A1A),
+                            const Color(0xFF0A0A0A),
+                          ],
                   ),
-                ],
-              ),
-              child: Stack(children: [
-                // Top specular highlight on button too
-                Positioned(
-                  top: 0, left: 16, right: 16,
-                  child: Container(
-                    height: 1,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [
-                        Colors.transparent,
-                        Colors.white.withAlpha(80),
-                        Colors.transparent,
-                      ]),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withAlpha(30),
+                    width: 1,
+                  ),
+                ),
+                child: Stack(
+                  children: [
+                    // Top specular highlight
+                    Positioned(
+                      top: 0, left: 20, right: 20,
+                      child: Container(
+                        height: 1.5,
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(colors: [
+                            Colors.transparent,
+                            Colors.white.withAlpha(70),
+                            Colors.transparent,
+                          ]),
+                        ),
+                      ),
                     ),
-                  ),
+                    Center(
+                      child: widget.loading
+                          ? const SizedBox(
+                              height: 24, width: 24,
+                              child: CircularProgressIndicator(
+                                  color: Color(0xFFFF8C00), strokeWidth: 2),
+                            )
+                          : const Text(
+                              'Sign In',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                    ),
+                  ],
                 ),
-                Center(
-                  child: widget.loading
-                      ? const SizedBox(width: 22, height: 22,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2.5))
-                      : const Text('Sign In',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.3,
-                          )),
-                ),
-              ]),
+              ),
             ),
           ),
         ),
