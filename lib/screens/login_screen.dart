@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
+import '../core/theme/design_tokens.dart';
+import '../core/theme/app_text_styles.dart';
+import '../widgets/success_checkmark.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -100,7 +103,22 @@ class _LoginScreenState extends State<LoginScreen>
       if (result['success'] == true) {
         if (mounted) {
           GlobalLayout.of(context)?.refreshAuthState();
-          Navigator.pushReplacementNamed(context, '/dashboard');
+          // Step 10: Show SuccessCheckmark dialog for 800ms then navigate
+          await showDialog(
+            context: context,
+            barrierColor: Colors.black26,
+            barrierDismissible: false,
+            builder: (ctx) => Center(
+              child: SuccessCheckmark(
+                size: 80,
+                onComplete: () async {
+                  await Future.delayed(const Duration(milliseconds: 800));
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                },
+              ),
+            ),
+          );
+          if (mounted) Navigator.pushReplacementNamed(context, '/dashboard');
         }
       } else {
         setState(() => _error = result['error'] ?? 'Login failed');
@@ -114,15 +132,21 @@ class _LoginScreenState extends State<LoginScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    // Step 13: Light bg -> dark status icons
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
       resizeToAvoidBottomInset: true,
-      backgroundColor: const Color(0xFFD6DBE6),
+      backgroundColor: AppColors.bgLogin,
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFFEBEEF3), Color(0xFFD6DBE6)],
+            colors: [AppColors.bgLoginTop, AppColors.bgLogin],
           ),
         ),
         child: SafeArea(
@@ -140,20 +164,10 @@ class _LoginScreenState extends State<LoginScreen>
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('LPU', style: TextStyle(
-                          color: Color(0xFFFF8C00),
-                          fontWeight: FontWeight.w900,
-                          fontSize: 28,
-                          letterSpacing: -0.8,
-                          fontFamily: 'Virgo',
-                        )),
+                        // Step 10: TOUCH alpha fixed to 1.0 (was 0.8)
+                        const Text('LPU', style: AppTextStyles.logoLpu),
                         const SizedBox(width: 6),
-                        Text('TOUCH', style: TextStyle(
-                          color: const Color(0xFFFF8C00).withValues(alpha: 0.8),
-                          fontWeight: FontWeight.w300,
-                          fontSize: 28,
-                          letterSpacing: 10,
-                        )),
+                        const Text('TOUCH', style: AppTextStyles.logoTouch),
                       ],
                     ),
                   ),
@@ -240,20 +254,16 @@ class _LoginScreenState extends State<LoginScreen>
                                 key: _formKey,
                                 child: Column(
                                   children: [
-                                    const Text('Welcome Back',
-                                        style: TextStyle(
-                                          fontSize: 32,
-                                          fontWeight: FontWeight.w900,
-                                          color: Color(0xFF1E293B),
-                                          letterSpacing: -1.2,
-                                        )),
-                                    const SizedBox(height: 8),
+                                    Semantics(
+                                      header: true,
+                                      child: Text('Welcome Back',
+                                          style: AppTextStyles.largeTitle.copyWith(fontSize: 32)),
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
+                                    // Step 10: subtitle alpha raised from 0.4 → 0.7
                                     Text('Sign in to continue to LPU Touch',
-                                        style: TextStyle(
-                                          fontSize: 14,
-                                          color: const Color(0xFF1E293B).withValues(alpha: 0.4),
-                                          fontWeight: FontWeight.w500,
-                                          letterSpacing: -0.2,
+                                        style: AppTextStyles.subhead.copyWith(
+                                          color: AppColors.textSecondary.withOpacity(0.70),
                                         )),
                                     const SizedBox(height: 32),
 
@@ -311,30 +321,57 @@ class _LoginScreenState extends State<LoginScreen>
                                     _AnimatedButton(
                                         loading: _loading, onTap: _login),
 
-                                    const SizedBox(height: 20),
-                                    const Text('Forgot Password?',
-                                        style: TextStyle(
-                                            fontSize: 13,
-                                            color: Color(0xFF6B7280))),
-                                    const SizedBox(height: 16),
+                                    const SizedBox(height: AppSpacing.xl),
+                                    // Step 10: Forgot Password — 48dp touch target
+                                    Semantics(
+                                      button: true,
+                                      label: 'Forgot Password',
+                                      child: GestureDetector(
+                                        onTap: () {},
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: AppSpacing.md,
+                                            vertical: AppSpacing.md,
+                                          ),
+                                          child: Text('Forgot Password?',
+                                              style: AppTextStyles.footnote),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: AppSpacing.sm),
                                     Divider(
-                                        color: const Color(0xFFE5E7EB).withValues(alpha: 0.8),
+                                        color: AppColors.divider.withOpacity(0.8),
                                         thickness: 1),
-                                    const SizedBox(height: 12),
-                                    const Row(
-                                      mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [
-                                        Text('New Here? ',
-                                            style: TextStyle(
-                                                fontSize: 13,
-                                                color: Color(0xFF6B7280))),
-                                        Text('Guest Access',
-                                            style: TextStyle(
-                                              fontSize: 13,
-                                              color: Color(0xFFFF8C00),
-                                              fontWeight: FontWeight.w600,
-                                            )),
-                                      ],
+                                    const SizedBox(height: AppSpacing.md),
+                                    // Step 10: Guest Access — Material+InkWell ripple
+                                    Semantics(
+                                      button: true,
+                                      label: 'Guest Access',
+                                      child: Material(
+                                        color: Colors.transparent,
+                                        child: InkWell(
+                                          onTap: () {},
+                                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                                          splashColor: AppColors.brandOrangeGlow.withOpacity(0.10),
+                                          child: Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: AppSpacing.md,
+                                              vertical: AppSpacing.xs,
+                                            ),
+                                            child: Row(
+                                              mainAxisAlignment: MainAxisAlignment.center,
+                                              children: [
+                                                Text('New Here? ', style: AppTextStyles.footnote),
+                                                Text('Guest Access',
+                                                    style: AppTextStyles.footnote.copyWith(
+                                                      color: AppColors.brandOrangeGlow,
+                                                      fontWeight: FontWeight.w600,
+                                                    )),
+                                              ],
+                                            ),
+                                          ),
+                                        ),
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -346,12 +383,13 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: AppSpacing.xxxl),
               ],
             ),
           ),
         ),
       ),
+      ), // AnnotatedRegion close
     );
   }
 }
