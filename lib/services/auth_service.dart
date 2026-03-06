@@ -8,6 +8,8 @@ class AuthService {
       'https://ums.lpu.in/umswebservice/umswebservice.svc/PVR';
   static const String _dexUrl =
       'https://ums.lpu.in/umswebservice/umswebservice.svc/GetDEx';
+  static const String _profileUrl =
+      'https://mobileapi.lpu.in/api/Student/GetProfile';
 
   final Dio _dio = Dio();
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
@@ -37,41 +39,29 @@ class AuthService {
           orElse: () => null,
         );
         if (tokenItem != null) {
-          final Map<String, dynamic> combinedUser = {};
-          
-          // Merge all attributes from all objects in the array to ensure we catch the Name
+          final token = tokenItem['AccessToken'].toString();
+          final regNo = (tokenItem['RegNo'] ?? userId).toString();
+
+          // Build a base user object from PVR result
+          final Map<String, dynamic> tempUser = {'RegNo': regNo, 'ExtractedName': regNo};
           for (var item in parsed) {
             if (item is Map<String, dynamic>) {
               item.forEach((key, value) {
-                // Ignore menu routing items, keep user profile attributes
                 if (key != 'MenuText' && key != 'Url' && key != 'RouteName' && value != null && value.toString().isNotEmpty) {
-                  combinedUser[key] = value;
+                  tempUser[key] = value;
                 }
               });
             }
           }
 
-          // Fallback manual mappings if standard keys are missing
-          combinedUser['RegNo'] = combinedUser['RegNo'] ?? tokenItem['RegNo'] ?? userId;
-          
-          // Heuristic to find the Name under various UMS keys
-          final possibleName = combinedUser['Name'] ?? 
-                               combinedUser['StudentName'] ?? 
-                               combinedUser['ApplicantName'] ??
-                               combinedUser['userName'] ??
-                               combinedUser['FullName'] ??
-                               combinedUser['FirstName'];
-          
-          if (possibleName != null) {
-             combinedUser['ExtractedName'] = possibleName;
-          } else {
-             combinedUser['ExtractedName'] = userId;
-          }
-
-          await _storage.write(key: 'lpu_token', value: tokenItem['AccessToken']);
+          await _storage.write(key: 'lpu_token', value: token);
           await _storage.write(key: 'lpu_userId', value: userId);
-          await _storage.write(key: 'lpu_user', value: jsonEncode(combinedUser));
+          await _storage.write(key: 'lpu_user', value: jsonEncode(tempUser));
           await _storage.write(key: 'lpu_menus', value: pvrResult);
+
+          // Immediately fetch real profile to get StudentName and all fields
+          await fetchProfile();
+
           return {'success': true, 'data': parsed};
         } else {
           final msg = parsed.isNotEmpty
@@ -82,6 +72,51 @@ class AuthService {
       }
     }
     return {'success': false, 'error': 'Server error'};
+  }
+
+  // ── Fetch Full Student Profile ────────────────────────────────────────────
+  // Calls https://mobileapi.lpu.in/api/Student/GetProfile with Authorization header.
+  // This mirrors the official UMS app's post-login profile call exactly.
+  Future<void> fetchProfile() async {
+    final token = await _storage.read(key: 'lpu_token');
+    if (token == null) return;
+
+    try {
+      final resp = await _dio.get(
+        _profileUrl,
+        options: Options(headers: {
+          'Authorization': token,
+          'Content-Type': 'application/json',
+        }),
+      );
+
+      if (resp.statusCode == 200 && resp.data != null) {
+        Map<String, dynamic>? profileData;
+        if (resp.data is List && (resp.data as List).isNotEmpty) {
+          profileData = Map<String, dynamic>.from((resp.data as List)[0]);
+        } else if (resp.data is Map) {
+          profileData = Map<String, dynamic>.from(resp.data);
+        }
+
+        if (profileData != null) {
+          final existingJson = await _storage.read(key: 'lpu_user');
+          final Map<String, dynamic> existing =
+              existingJson != null ? Map<String, dynamic>.from(jsonDecode(existingJson)) : {};
+          existing.addAll(profileData);
+
+          // Resolve the best display name from the profile response
+          final name = profileData['StudentName'] ??
+              profileData['Name'] ??
+              profileData['FullName'] ??
+              existing['RegNo'];
+          existing['ExtractedName'] = name;
+
+          await _storage.write(key: 'lpu_user', value: jsonEncode(existing));
+        }
+      }
+    } catch (_) {
+      // Silently fail — PVR-based fallback name is already stored
+    }
   }
 
   // ── Generic UMS request (authenticated) ─────────────────────────────────

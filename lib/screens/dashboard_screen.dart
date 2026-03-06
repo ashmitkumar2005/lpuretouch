@@ -53,6 +53,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _loading = false;
       });
     }
+    // Refresh real profile in background and update name if it comes back
+    _authService.fetchProfile().then((_) async {
+      final refreshed = await _authService.getUser();
+      if (mounted) setState(() => _user = refreshed);
+    }).catchError((_) {});
   }
 
   Future<void> _logout() async {
