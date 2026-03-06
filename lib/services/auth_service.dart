@@ -37,9 +37,20 @@ class AuthService {
           orElse: () => null,
         );
         if (tokenItem != null) {
+          final userInfo = parsed.firstWhere(
+            (e) => e['Name'] != null && e['Name'].toString().isNotEmpty,
+            orElse: () => null,
+          );
+          
+          final combinedUser = {
+            'Name': userInfo != null ? userInfo['Name'] : userId,
+            'RegNo': tokenItem['RegNo'] ?? userId,
+            'Program': tokenItem['Program'] ?? '',
+          };
+
           await _storage.write(key: 'lpu_token', value: tokenItem['AccessToken']);
           await _storage.write(key: 'lpu_userId', value: userId);
-          await _storage.write(key: 'lpu_user', value: jsonEncode(tokenItem));
+          await _storage.write(key: 'lpu_user', value: jsonEncode(combinedUser));
           await _storage.write(key: 'lpu_menus', value: pvrResult);
           return {'success': true, 'data': parsed};
         } else {
