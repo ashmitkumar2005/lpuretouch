@@ -11,13 +11,46 @@ import '../widgets/app_card.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/error_retry_widget.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic> user;
 
   const ProfileScreen({super.key, required this.user});
 
   @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _sheetCtrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _sheetCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+      reverseDuration: const Duration(milliseconds: 300),
+    );
+  }
+
+  @override
+  void dispose() {
+    _sheetCtrl.dispose();
+    super.dispose();
+  }
+
+  // Helper that rebuilds controller so each open uses a fresh animation
+  AnimationController _freshCtrl() {
+    _sheetCtrl
+      ..reset()
+      ..duration = const Duration(milliseconds: 400);
+    return _sheetCtrl;
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final user = widget.user;
     final name =
         user['StudentName'] ?? user['ExtractedName'] ?? 'Student';
     final initials = name
@@ -390,6 +423,9 @@ class ProfileScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      transitionAnimationController: _freshCtrl(),
       backgroundColor: Colors.transparent, // Allow BackdropFilter to show
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -402,7 +438,7 @@ class ProfileScreen extends StatelessWidget {
             color: Colors.white.withValues(alpha: 0.85),
             borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
           ),
-          child: _DigitalIDModal(user: user),
+          child: _DigitalIDModal(user: widget.user),
         ),
       ),
     );
@@ -413,6 +449,9 @@ class ProfileScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      useRootNavigator: true,
+      useSafeArea: true,
+      transitionAnimationController: _freshCtrl(),
       backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
@@ -425,12 +464,21 @@ class ProfileScreen extends StatelessWidget {
             initialChildSize: 0.6,
             minChildSize: 0.4,
             maxChildSize: 0.9,
+            snap: true,
+            snapSizes: const [0.6, 0.9],
             expand: false,
             builder: (_, controller) {
               return Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.85),
+                  color: AppColors.bgDashboard,
                   borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.14),
+                      blurRadius: 30,
+                      offset: const Offset(0, -8),
+                    ),
+                  ],
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
                 child: ListView(
@@ -466,10 +514,19 @@ class ProfileScreen extends StatelessWidget {
                       padding: const EdgeInsets.all(AppSpacing.lg),
                       decoration: BoxDecoration(
                         color: AppColors.bgDashboard,
-                        borderRadius:
-                            BorderRadius.circular(AppRadius.xl),
-                        border: Border.all(
-                            color: AppColors.borderSubtle),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.10),
+                            blurRadius: 16,
+                            offset: const Offset(5, 5),
+                          ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            blurRadius: 16,
+                            offset: Offset(-5, -5),
+                          ),
+                        ],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -649,7 +706,18 @@ class _DigitalIDModalState extends State<_DigitalIDModal> {
             decoration: BoxDecoration(
               color: AppColors.bgDashboard,
               borderRadius: BorderRadius.circular(AppRadius.xxl),
-              border: Border.all(color: AppColors.borderSubtle),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.10),
+                  blurRadius: 20,
+                  offset: const Offset(6, 6),
+                ),
+                const BoxShadow(
+                  color: Colors.white,
+                  blurRadius: 20,
+                  offset: Offset(-6, -6),
+                ),
+              ],
             ),
             child: Column(
               children: [

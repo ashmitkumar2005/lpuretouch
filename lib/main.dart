@@ -8,6 +8,7 @@ import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/timetable_screen.dart';
 import 'screens/profile_screen.dart';
+import 'screens/coming_soon_screen.dart';
 import 'services/auth_service.dart';
 import 'services/cache_service.dart';
 import 'services/connectivity_service.dart';
@@ -403,7 +404,7 @@ class GlobalLayoutState extends State<GlobalLayout> {
                         child: LayoutBuilder(
                           builder: (context, constraints) {
                             final dockWidth = constraints.maxWidth;
-                            final itemWidth = dockWidth / 5;
+                            final itemWidth = dockWidth / 4;
 
                             return RepaintBoundary(
                               child: Material(
@@ -445,14 +446,17 @@ class GlobalLayoutState extends State<GlobalLayout> {
                                                     () => navigateTo(0, const DashboardScreen(), '/dashboard')),
                                                 _buildDockItem(1, Icons.calendar_month_rounded, 'Timetable',
                                                     () => navigateTo(1, const TimetableScreen(), '/timetable')),
-                                                _buildDockItem(2, Icons.folder_open_rounded, 'Files',
-                                                    () => _setActiveIndex(2)),
-                                                _buildDockItem(3, Icons.image_outlined, 'Gallery',
-                                                    () => _setActiveIndex(3)),
-                                                _buildDockItem(4, Icons.person_outline_rounded, 'Profile', () async {
+                                                _buildDockItem(2, Icons.image_outlined, 'Gallery',
+                                                    () => navigatorKey.currentState?.push(MaterialPageRoute(
+                                                      builder: (_) => const ComingSoonScreen(
+                                                        featureName: 'Gallery',
+                                                        icon: Icons.image_outlined,
+                                                      ),
+                                                    ))),
+                                                _buildDockItem(3, Icons.person_outline_rounded, 'Profile', () async {
                                                   final user = await _authService.getUser();
                                                   if (user != null) {
-                                                    navigateTo(4, ProfileScreen(user: user), '/profile');
+                                                    navigateTo(3, ProfileScreen(user: user), '/profile');
                                                   }
                                                 }),
                                               ],
@@ -561,7 +565,7 @@ class _LiquidHighlighterState extends State<LiquidHighlighter>
     const double pillTop = (dockH - pillH) / 2;
 
     final minX = _centerXFor(0);
-    final maxX = _centerXFor(4);
+    final maxX = _centerXFor(3);
 
     return Positioned(
       left: 0,
