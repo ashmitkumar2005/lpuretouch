@@ -27,6 +27,13 @@ class ErrorRetryWidget extends StatelessWidget {
     if (error.contains('timeout')) {
       return 'Connection timed out.\nTry again with a better signal.';
     }
+    
+    // If the error is a cleanly formatted message without tech jargon, pass it through.
+    final lower = error.toLowerCase();
+    if (!lower.contains('exception') && !lower.contains('dio') && !lower.contains('error:') && error.length < 100) {
+      return error;
+    }
+    
     return 'Something went wrong.\nPlease check your connection and try again.';
   }
 
@@ -42,7 +49,7 @@ class ErrorRetryWidget extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
-                color: Colors.red.withOpacity(0.05),
+                color: Colors.red.withOpacity(0.25),
                 shape: BoxShape.circle,
               ),
               child: Icon(

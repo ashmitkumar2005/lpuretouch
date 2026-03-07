@@ -3,6 +3,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../services/auth_service.dart';
+import '../services/biometric_service.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../main.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/app_text_styles.dart';
@@ -28,6 +30,9 @@ class _LoginScreenState extends State<LoginScreen>
   bool _loading = false;
   bool _obscurePassword = true;
   String? _error;
+  
+  final _biometricService = BiometricService();
+  bool _canUseBiometrics = false;
 
 
 
@@ -84,6 +89,32 @@ class _LoginScreenState extends State<LoginScreen>
 
     Future.delayed(const Duration(milliseconds: 80),
         () { if (mounted) _entranceCtrl.forward(); });
+    
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    final canUse = await _biometricService.canUseBiometrics();
+    if (mounted) {
+      setState(() => _canUseBiometrics = canUse);
+    }
+  }
+
+  Future<void> _loginWithBiometrics() async {
+    final authenticated = await _biometricService.authenticate();
+    if (authenticated) {
+      final storage = const FlutterSecureStorage();
+      final userId = await storage.read(key: 'lpu_userId');
+      final password = await storage.read(key: 'lpu_password');
+
+      if (userId != null && password != null) {
+        _userIdCtrl.text = userId;
+        _passwordCtrl.text = password;
+        _login(); // Perform standard login flow
+      } else {
+        setState(() => _error = 'Please login with credentials first');
+      }
+    }
   }
 
   @override
@@ -219,31 +250,31 @@ class _LoginScreenState extends State<LoginScreen>
                           child: child,
                         );
                       },
-                      child: Stack(
-                        alignment: Alignment.center,
-                        children: [
-                          FadeTransition(
-                            opacity: _glowOpacity,
-                            child: Container(
-                              width: 170, height: 170,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: Colors.white,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFFFF8C00).withValues(alpha: 0.15),
-                                    blurRadius: 50,
-                                    spreadRadius: 2,
-                                  ),
-                                ],
-                              ),
+                      child: Container(
+                        width: 140, height: 140,
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.bgLoginTop,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.25),
+                              blurRadius: 30,
+                              offset: const Offset(14, 14),
                             ),
-                          ),
-                          ClipOval(child: Image.asset(
+                            const BoxShadow(
+                              color: Colors.white,
+                              blurRadius: 30,
+                              offset: Offset(-14, -14),
+                            ),
+                          ],
+                        ),
+                        child: ClipOval(
+                          child: Image.asset(
                             'assets/logo.png',
-                            width: 130, height: 130, fit: BoxFit.cover,
-                          )),
-                        ],
+                            fit: BoxFit.cover,
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -256,29 +287,25 @@ class _LoginScreenState extends State<LoginScreen>
                   opacity: _cardFade,
                   child: SlideTransition(
                     position: _cardSlide,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(40),
-                      child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.fromLTRB(32, 40, 32, 36),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(40),
-                            border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.3),
-                              width: 1.0,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withValues(alpha: 0.08),
-                                blurRadius: 40,
-                                spreadRadius: 0,
-                                offset: const Offset(0, 20),
-                              ),
-                            ],
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.fromLTRB(32, 40, 32, 36),
+                      decoration: BoxDecoration(
+                        color: AppColors.bgLoginTop,
+                        borderRadius: BorderRadius.circular(40),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 30,
+                            offset: const Offset(14, 14),
                           ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            blurRadius: 30,
+                            offset: Offset(-14, -14),
+                          ),
+                        ],
+                      ),
                           child: Stack(
                             children: [
                               Form(
@@ -352,6 +379,11 @@ class _LoginScreenState extends State<LoginScreen>
                                     _AnimatedButton(
                                         loading: _loading, onTap: _login),
 
+                                    if (_canUseBiometrics) ...[
+                                      const SizedBox(height: 16),
+                                      _BiometricButton(onTap: _loginWithBiometrics),
+                                    ],
+
                                     const SizedBox(height: AppSpacing.xl),
                                     // Step 10: Forgot Password — 48dp touch target
                                     Semantics(
@@ -383,7 +415,7 @@ class _LoginScreenState extends State<LoginScreen>
                                         child: InkWell(
                                           onTap: () {},
                                           borderRadius: BorderRadius.circular(AppRadius.sm),
-                                          splashColor: AppColors.brandOrangeGlow.withOpacity(0.10),
+                                          splashColor: AppColors.brandOrangeGlow.withOpacity(0.22),
                                           child: Padding(
                                             padding: const EdgeInsets.symmetric(
                                               horizontal: AppSpacing.md,
@@ -413,8 +445,6 @@ class _LoginScreenState extends State<LoginScreen>
                               ),
                             ],
                           ),
-                        ),
-                      ),
                     ),
                   ),
                 ),
@@ -526,50 +556,23 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                 height: 56,
                 child: Stack(
                   children: [
-                    // Base unfocused background (Static)
+                    // Base Neumorphic background
                     Container(
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.1),
+                        color: AppColors.bgLoginTop,
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          width: 1.0,
-                        ),
-                      ),
-                    ),
-                    // GPU-Accelerated Focused Background Glow
-                    FadeTransition(
-                      opacity: _glowOpacity,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.8),
-                          borderRadius: BorderRadius.circular(18),
-                          border: Border.all(
-                            color: const Color(0xFFFF8C00),
-                            width: 1.5,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 30,
+                            offset: const Offset(14, 14),
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: const Color(0xFFFF8C00).withValues(alpha: 0.2),
-                              blurRadius: 15,
-                              spreadRadius: 0,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    // Top specular highlight
-                    Positioned(
-                      top: 0, left: 12, right: 12,
-                      child: Container(
-                        height: 1,
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(colors: [
-                            Colors.transparent,
-                            Colors.white.withValues(alpha: 0.85),
-                            Colors.transparent,
-                          ]),
-                        ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            blurRadius: 30,
+                            offset: Offset(-14, -14),
+                          ),
+                        ],
                       ),
                     ),
                     // Text field
@@ -689,72 +692,88 @@ class _AnimatedButtonState extends State<_AnimatedButton>
               width: double.infinity,
               height: 56,
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: widget.loading
-                      ? [
-                          Colors.black.withValues(alpha: 0.6),
-                          Colors.black.withValues(alpha: 0.5),
-                        ]
-                      : [
-                          const Color(0xFF1E293B),
-                          const Color(0xFF0F172A),
-                        ],
-                ),
+                color: const Color(0xFF1C1C1E),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.1),
-                  width: 1,
-                ),
                 boxShadow: [
                   BoxShadow(
-                    color: const Color(0xFF0F172A).withValues(alpha: 0.2),
-                    blurRadius: 20,
-                    offset: const Offset(0, 10),
+                    color: Colors.black.withOpacity(0.4),
+                    blurRadius: 30,
+                    offset: const Offset(14, 14),
+                  ),
+                  const BoxShadow(
+                    color: Colors.white,
+                    blurRadius: 30,
+                    offset: Offset(-14, -14),
                   ),
                 ],
               ),
-              child: Stack(
-                children: [
-                  // Top specular highlight
-                  Positioned(
-                    top: 0, left: 20, right: 20,
-                    child: Container(
-                      height: 1.5,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: [
-                          Colors.transparent,
-                          Colors.white.withValues(alpha: 0.3),
-                          Colors.transparent,
-                        ]),
+              child: Center(
+                child: widget.loading
+                    ? const SizedBox(
+                        height: 24, width: 80,
+                        child: ShimmerLoading(
+                          width: 80, 
+                          height: 20, 
+                          borderRadius: 4,
+                        ),
+                      )
+                    : const Text(
+                        'Sign In',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                  ),
-                  Center(
-                    child: widget.loading
-                        ? const SizedBox(
-                            height: 24, width: 80,
-                            child: ShimmerLoading(
-                              width: 80, 
-                              height: 20, 
-                              borderRadius: 4,
-                            ),
-                          )
-                        : const Text(
-                            'Sign In',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 17,
-                              fontWeight: FontWeight.w800,
-                              letterSpacing: -0.5,
-                            ),
-                          ),
-                  ),
-                ],
               ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _BiometricButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BiometricButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+        decoration: BoxDecoration(
+          color: AppColors.bgLoginTop,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 10,
+              offset: const Offset(4, 4),
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 10,
+              offset: Offset(-4, -4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.fingerprint_rounded, color: AppColors.brandOrangeGlow, size: 24),
+            const SizedBox(width: 10),
+            Text(
+              'Sign in with Biometrics',
+              style: AppTextStyles.buttonLabel.copyWith(
+                color: AppColors.textPrimary.withValues(alpha: 0.8),
+                fontSize: 14,
+              ),
+            ),
+          ],
         ),
       ),
     );

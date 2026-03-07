@@ -356,6 +356,63 @@ class AuthService {
     return null; // Return null on failure instead of mock data now that we have the real API
   }
 
+  // ── Fetch My Messages ─────────────────────────────────────────────────────
+
+  Future<List<dynamic>?> fetchMyMessages() async {
+    const cacheKey = 'my_messages';
+    // 1. Serve from Hive if fresh
+    final cached = await _cache.get(cacheKey);
+    if (cached != null) {
+      return List<dynamic>.from(cached);
+    }
+
+    final token = await _storage.read(key: 'lpu_token');
+    final userId = await _storage.read(key: 'lpu_userId');
+    final deviceId = await _storage.read(key: 'lpu_deviceId') ?? 'flutter-123';
+    final userType = await _storage.read(key: 'lpu_userType'); // Optional: 'Student' or 'Employee'
+
+    if (token == null || userId == null) return null;
+
+    try {
+      final endpoint = userType == 'Employee'
+          ? 'EmployeeMyMessagesForService'
+          : 'StudentMyMessagesForService';
+
+      final url =
+          'https://ums.lpu.in/umswebservice/umswebservice.svc/$endpoint/$userId/$token/$deviceId';
+      final resp = await _dio.get(url);
+
+      if (resp.statusCode == 200 && resp.data != null) {
+        final parsedData =
+            resp.data is String ? jsonDecode(resp.data) : resp.data;
+
+        if (parsedData is List && parsedData.isNotEmpty) {
+          final firstItem = parsedData.first as Map<String, dynamic>;
+          // The API sometimes returns an object with a real Error message,
+          // but valid messages also contain 'Error': ''
+          final hasError = firstItem.containsKey('Error') && 
+                           firstItem['Error'] != null && 
+                           firstItem['Error'].toString().trim().isNotEmpty;
+
+          if (!hasError) {
+            // 2. Write to Hive
+            await _cache.set(cacheKey, parsedData, ttl: CacheService.announcementsTTL);
+            return List<dynamic>.from(parsedData);
+          }
+        }
+      }
+    } catch (e) {
+      print('API Error: $e');
+
+      // 3. On network error, try stale cache
+      final stale = await _cache.getStale(cacheKey);
+      if (stale != null) {
+        return List<dynamic>.from(stale as List);
+      }
+    }
+    return null;
+  }
+
   // ── Fetch Announcement Details ──────────────────────────────────────────────
 
   Future<Map<String, dynamic>?> fetchAnnouncementDetails(

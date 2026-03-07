@@ -6,6 +6,7 @@ import '../core/theme/app_text_styles.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/error_retry_widget.dart';
+import '../services/notification_service.dart';
 
 class AnnouncementsScreen extends StatefulWidget {
   const AnnouncementsScreen({super.key});
@@ -41,6 +42,9 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
           _announcements = _allAnnouncements?.take(_currentLimit).toList();
           _loading = false;
         });
+        if (data != null && data.isNotEmpty) {
+          NotificationService().markAnnouncementsAsSeen(data);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -100,59 +104,62 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.bgDashboard,
-      appBar: AppBar(
-        title: const Text(
-          'Announcements',
-          style: TextStyle(
-            fontFamily: 'SF Pro Display',
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: AppColors.textPrimary,
-            letterSpacing: -0.3,
-          ),
-        ),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        scrolledUnderElevation: 0,
-        centerTitle: true,
-        leadingWidth: 60,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 12),
-          child: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: AppColors.bgDashboard,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.12),
-                    blurRadius: 12,
-                    offset: const Offset(4, 4),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+              child: Row(
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 44,
+                      height: 44,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: AppColors.bgDashboard,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.25),
+                            blurRadius: 28,
+                            offset: const Offset(10, 10),
+                          ),
+                          const BoxShadow(
+                            color: Colors.white,
+                            blurRadius: 28,
+                            offset: Offset(-10, -10),
+                          ),
+                        ],
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.only(left: 6.0),
+                        child: Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: AppColors.textPrimary),
+                      ),
+                    ),
                   ),
-                  const BoxShadow(
-                    color: Colors.white,
-                    blurRadius: 12,
-                    offset: Offset(-4, -4),
+                  const Expanded(
+                    child: Text(
+                      'Announcements',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontFamily: 'SF Pro Display',
+                        fontWeight: FontWeight.w700,
+                        fontSize: 18,
+                        color: AppColors.textPrimary,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
                   ),
+                  const SizedBox(width: 44),
                 ],
               ),
-              child: const Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: AppColors.textPrimary),
             ),
-          ),
-        ),
-      ),
-      body: _loading
-          ? ListView.builder(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              itemCount: 5,
-              itemBuilder: (_, __) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                child: ShimmerLoading.card(height: 110),
-              ),
-            )
+            Expanded(
+              child: _loading
+          ? const _AnnouncementsSkeleton()
           : _error != null
               ? ErrorRetryWidget(message: _error!, onRetry: _load)
               : (_announcements == null || _announcements!.isEmpty)
@@ -213,19 +220,19 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                   borderRadius: BorderRadius.circular(AppRadius.lg),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.13),
-                                      blurRadius: 20,
-                                      offset: const Offset(6, 6),
+                                      color: Colors.black.withOpacity(0.25),
+                                      blurRadius: 30,
+                                      offset: const Offset(10, 10),
                                     ),
                                     const BoxShadow(
                                       color: Colors.white,
-                                      blurRadius: 20,
-                                      offset: Offset(-6, -6),
+                                      blurRadius: 30,
+                                      offset: Offset(-10, -10),
                                     ),
                                     BoxShadow(
                                       color: Colors.black.withOpacity(0.04),
                                       blurRadius: 6,
-                                      offset: const Offset(2, 2),
+                                      offset: const Offset(10, 10),
                                     ),
                                   ],
                                 ),
@@ -299,7 +306,7 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                                       Container(
                                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                                         decoration: BoxDecoration(
-                                          color: Colors.grey.withOpacity(0.12),
+                                          color: Colors.grey.withOpacity(0.25),
                                           borderRadius: BorderRadius.circular(4),
                                           border: Border.all(color: Colors.grey.withOpacity(0.2), width: 0.8),
                                         ),
@@ -322,6 +329,10 @@ class _AnnouncementsScreenState extends State<AnnouncementsScreen> {
                         },
                       ),
                     ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -356,21 +367,21 @@ class _NeumorphicLoadMoreButtonState extends State<_NeumorphicLoadMoreButton> {
           boxShadow: _pressed
               ? [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
+                    color: Colors.black.withOpacity(0.25),
                     blurRadius: 4,
-                    offset: const Offset(2, 2),
+                    offset: const Offset(10, 10),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.13),
-                    blurRadius: 18,
-                    offset: const Offset(6, 6),
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 28,
+                    offset: const Offset(10, 10),
                   ),
                   const BoxShadow(
                     color: Colors.white,
-                    blurRadius: 18,
-                    offset: Offset(-6, -6),
+                    blurRadius: 28,
+                    offset: Offset(-10, -10),
                   ),
                 ],
         ),
@@ -394,6 +405,59 @@ class _NeumorphicLoadMoreButtonState extends State<_NeumorphicLoadMoreButton> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AnnouncementsSkeleton extends StatelessWidget {
+  const _AnnouncementsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.builder(
+      padding: const EdgeInsets.all(AppSpacing.screenH),
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: 5,
+      itemBuilder: (_, __) => Padding(
+        padding: const EdgeInsets.only(bottom: AppSpacing.md),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          decoration: BoxDecoration(
+            color: AppColors.bgDashboard,
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 15,
+                offset: const Offset(5, 5),
+              ),
+              const BoxShadow(
+                color: Colors.white,
+                blurRadius: 15,
+                offset: Offset(-5, -5),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const ShimmerLoading(width: 60, height: 18, borderRadius: 6), // Category
+                  const Spacer(),
+                  const ShimmerLoading(width: 80, height: 14, borderRadius: 4), // Date
+                ],
+              ),
+              const SizedBox(height: AppSpacing.sm),
+              const ShimmerLoading(width: 220, height: 18, borderRadius: 4), // Title
+              const SizedBox(height: 8),
+              const ShimmerLoading(width: double.infinity, height: 14, borderRadius: 4), // Desc line 1
+              const SizedBox(height: 4),
+              const ShimmerLoading(width: 180, height: 14, borderRadius: 4), // Desc line 2
+            ],
+          ),
         ),
       ),
     );

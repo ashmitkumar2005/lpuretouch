@@ -9,6 +9,7 @@ import 'screens/dashboard_screen.dart';
 import 'screens/timetable_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/coming_soon_screen.dart';
+import 'screens/attendance_screen.dart';
 import 'services/auth_service.dart';
 import 'services/cache_service.dart';
 import 'services/connectivity_service.dart';
@@ -284,12 +285,21 @@ class GlobalLayoutState extends State<GlobalLayout> {
     super.initState();
     refreshAuthState();
     AuthService.onForceLogout.addListener(_handleForceLogout);
+    _authService.isLoggedInNotifier.addListener(_handleLoginStateChange);
   }
 
   @override
   void dispose() {
     AuthService.onForceLogout.removeListener(_handleForceLogout);
+    _authService.isLoggedInNotifier.removeListener(_handleLoginStateChange);
     super.dispose();
+  }
+
+  void _handleLoginStateChange() {
+    // Reset index to Home whenever user logs out or session changes
+    if (!_authService.isLoggedInNotifier.value) {
+      _setActiveIndex(0);
+    }
   }
 
   void _handleForceLogout() {
@@ -446,13 +456,8 @@ class GlobalLayoutState extends State<GlobalLayout> {
                                                     () => navigateTo(0, const DashboardScreen(), '/dashboard')),
                                                 _buildDockItem(1, Icons.calendar_month_rounded, 'Timetable',
                                                     () => navigateTo(1, const TimetableScreen(), '/timetable')),
-                                                _buildDockItem(2, Icons.image_outlined, 'Gallery',
-                                                    () => navigatorKey.currentState?.push(MaterialPageRoute(
-                                                      builder: (_) => const ComingSoonScreen(
-                                                        featureName: 'Gallery',
-                                                        icon: Icons.image_outlined,
-                                                      ),
-                                                    ))),
+                                                _buildDockItem(2, Icons.how_to_reg_rounded, 'Attendance',
+                                                    () => navigateTo(2, const AttendanceScreen(), '/attendance')),
                                                 _buildDockItem(3, Icons.person_outline_rounded, 'Profile', () async {
                                                   final user = await _authService.getUser();
                                                   if (user != null) {
@@ -598,7 +603,7 @@ class _LiquidHighlighterState extends State<LiquidHighlighter>
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.5),
-                blurRadius: 12,
+                blurRadius: 28,
                 offset: const Offset(0, 4),
               ),
             ],

@@ -41,7 +41,7 @@ class OfflineBanner extends StatelessWidget {
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.2),
-                        blurRadius: 20,
+                        blurRadius: 30,
                         offset: const Offset(0, 10),
                       ),
                     ],

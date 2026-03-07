@@ -138,7 +138,7 @@ class AppShadows {
   static List<BoxShadow> get cardSoft => [
     BoxShadow(
       color: Colors.black.withOpacity(0.04),
-      blurRadius: 12,
+      blurRadius: 28,
       offset: const Offset(0, 4),
     ),
     BoxShadow(
@@ -165,7 +165,7 @@ class AppShadows {
   /// Modal / bottom sheet shadow.
   static List<BoxShadow> get modal => [
     BoxShadow(
-      color: Colors.black.withOpacity(0.12),
+      color: Colors.black.withOpacity(0.25),
       blurRadius: 40,
       offset: const Offset(0, -8),
     ),

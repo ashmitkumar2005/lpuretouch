@@ -129,24 +129,25 @@ class _TimetableScreenState extends State<TimetableScreen> {
 
   Widget _buildDaySelector() {
     return Container(
-      height: 70,
-      margin: const EdgeInsets.only(bottom: AppSpacing.md),
+      height: 120,
+      margin: const EdgeInsets.only(bottom: AppSpacing.xs),
       child: ListView.builder(
+        clipBehavior: Clip.none,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: 25),
         physics: const BouncingScrollPhysics(),
         itemCount: _weekDays.length,
         itemBuilder: (context, index) {
           final isSelected = _selectedDayIndex == index;
           return Padding(
-            padding: const EdgeInsets.only(right: 12, top: 4, bottom: 4),
+            padding: const EdgeInsets.only(right: 16),
             child: GestureDetector(
               onTap: () {
                 setState(() => _selectedDayIndex = index);
               },
               child: AnimatedContainer(
                 duration: AppDurations.fast,
-                width: 50,
+                width: 55,
                 decoration: BoxDecoration(
                   color: isSelected ? AppColors.primaryBlue : AppColors.bgDashboard,
                   borderRadius: BorderRadius.circular(15),
@@ -154,20 +155,20 @@ class _TimetableScreenState extends State<TimetableScreen> {
                     ? [
                         BoxShadow(
                           color: AppColors.primaryBlue.withOpacity(0.3),
-                          blurRadius: 10,
+                          blurRadius: 16,
                           offset: const Offset(0, 4),
                         )
                       ]
                     : [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
+                          color: Colors.black.withOpacity(0.25),
                           blurRadius: 8,
-                          offset: const Offset(2, 2),
+                          offset: const Offset(10, 10),
                         ),
                         const BoxShadow(
                           color: Colors.white,
                           blurRadius: 8,
-                          offset: Offset(-2, -2),
+                          offset: Offset(-10, -10),
                         ),
                       ],
                 ),
@@ -217,18 +218,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
         centerTitle: true,
       ),
       body: _loading
-          ? GridView.builder(
-              padding: const EdgeInsets.all(AppSpacing.screenH),
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisSpacing: AppSpacing.xl,
-                crossAxisSpacing: AppSpacing.xl,
-                mainAxisExtent: 110,
-              ),
-              itemCount: 6,
-              itemBuilder: (context, index) => ShimmerLoading.card(height: 110),
-            )
+          ? const _TimetableSkeleton()
           : _error != null
               ? ErrorRetryWidget(
                   message: ErrorRetryWidget.friendlyMessage(_error!),
@@ -284,12 +274,12 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                 BoxShadow(
                                   color: Colors.black.withValues(alpha: 0.08),
                                   blurRadius: 15,
-                                  offset: const Offset(4, 4),
+                                  offset: const Offset(10, 10),
                                 ),
                                 const BoxShadow(
                                   color: Colors.white,
                                   blurRadius: 15,
-                                  offset: Offset(-4, -4),
+                                  offset: Offset(-10, -10),
                                 ),
                               ],
                             ),
@@ -370,6 +360,46 @@ class _TimetableScreenState extends State<TimetableScreen> {
               ],
             ),
       ),
+    );
+  }
+}
+
+class _TimetableSkeleton extends StatelessWidget {
+  const _TimetableSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        // Day Selector Skeleton
+        SizedBox(
+          height: 120,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH, vertical: 25),
+            itemCount: 7,
+            itemBuilder: (_, __) => Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: const ShimmerLoading(width: 55, height: 70, borderRadius: 15),
+            ),
+          ),
+        ),
+        // Subjects Grid Skeleton
+        Expanded(
+          child: GridView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: AppSpacing.xl,
+              crossAxisSpacing: AppSpacing.xl,
+              mainAxisExtent: 110,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => ShimmerLoading.card(height: 110),
+          ),
+        ),
+      ],
     );
   }
 }

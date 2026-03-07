@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shimmer/shimmer.dart';
 import '../core/theme/design_tokens.dart';
 
-class ShimmerLoading extends StatelessWidget {
+class ShimmerLoading extends StatefulWidget {
   final double width;
   final double height;
   final double borderRadius;
@@ -31,23 +30,69 @@ class ShimmerLoading extends StatelessWidget {
       width: size,
       height: size,
       shape: BoxShape.circle,
+      borderRadius: size / 2,
     );
   }
 
   @override
+  State<ShimmerLoading> createState() => _ShimmerLoadingState();
+}
+
+class _ShimmerLoadingState extends State<ShimmerLoading>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1500))
+      ..repeat();
+    _slide =
+        Tween<Offset>(begin: const Offset(-1.5, 0), end: const Offset(1.5, 0))
+            .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutSine));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Shimmer.fromColors(
-      baseColor: Colors.grey[300]!,
-      highlightColor: Colors.grey[100]!,
-      child: Container(
-        width: width,
-        height: height,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          shape: shape,
-          borderRadius: shape == BoxShape.rectangle 
-            ? BorderRadius.circular(borderRadius) 
-            : null,
+    final baseColor = Colors.black.withAlpha(10);
+    final highlightColor = Colors.black.withAlpha(25);
+
+    return ClipRRect(
+      borderRadius: widget.shape == BoxShape.circle 
+          ? BorderRadius.circular(widget.height / 2)
+          : BorderRadius.circular(widget.borderRadius),
+      child: SizedBox(
+        width: widget.width,
+        height: widget.height,
+        child: Stack(
+          children: [
+            Container(color: baseColor),
+            Positioned.fill(
+              child: SlideTransition(
+                position: _slide,
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      stops: const [0.0, 0.5, 1.0],
+                      colors: [
+                        Colors.transparent,
+                        highlightColor,
+                        Colors.transparent
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

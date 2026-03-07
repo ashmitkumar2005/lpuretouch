@@ -10,6 +10,7 @@ import '../widgets/animated_list_item.dart';
 import '../widgets/app_card.dart';
 import '../widgets/shimmer_loading.dart';
 import '../widgets/error_retry_widget.dart';
+import 'settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -92,10 +93,16 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           Semantics(
             button: true,
-            label: 'Logout',
+            label: 'Settings',
             child: _CircularActionButton(
-              icon: Icons.logout_outlined,
-              onTap: () => _showLogoutConfirmation(context),
+              icon: Icons.settings_outlined,
+              onTap: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (context) => const SettingsScreen(),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -124,13 +131,13 @@ class _ProfileScreenState extends State<ProfileScreen>
                     boxShadow: [
                       BoxShadow(
                         color: Colors.white,
-                        offset: const Offset(-4, -4),
-                        blurRadius: 10,
+                        offset: const Offset(-10, -10),
+                        blurRadius: 16,
                       ),
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.08),
-                        offset: const Offset(4, 4),
-                        blurRadius: 10,
+                        offset: const Offset(10, 10),
+                        blurRadius: 16,
                       ),
                     ],
                   ),
@@ -331,94 +338,6 @@ class _ProfileScreenState extends State<ProfileScreen>
     );
   }
 
-  // ─── Modal Helpers ──────────────────────────────────────────────────────────
-
-  void _showLogoutConfirmation(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierColor: Colors.black26,
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Dialog(
-          backgroundColor: Colors.white.withValues(alpha: 0.9),
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xxl)),
-          child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xxl),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 64,
-                  height: 64,
-                  decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(Icons.logout_rounded,
-                      color: AppColors.error, size: 32),
-                ),
-                const SizedBox(height: AppSpacing.xl),
-                const Text('Logout?', style: AppTextStyles.title2),
-                const SizedBox(height: AppSpacing.sm),
-                Text(
-                  'Are you sure you want to sign out of your account?',
-                  textAlign: TextAlign.center,
-                  style: AppTextStyles.subhead.copyWith(
-                    color: AppColors.textPrimary.withValues(alpha: 0.6),
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.xxxl),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        style: TextButton.styleFrom(
-                          minimumSize: const Size(0, 52),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.lg)),
-                        ),
-                        child: Text('Cancel',
-                            style: AppTextStyles.buttonLabel
-                                .copyWith(color: AppColors.textPrimary)),
-                      ),
-                    ),
-                    const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: () async {
-                          Navigator.pop(context); // Close dialog
-                          await AuthService().logout();
-                          if (context.mounted) {
-                            GlobalLayout.of(context)?.refreshAuthState();
-                            Navigator.of(context).pushNamedAndRemoveUntil(
-                                '/login', (r) => false);
-                          }
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Colors.white,
-                          minimumSize: const Size(0, 52),
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.lg)),
-                        ),
-                        child: const Text('Logout',
-                            style: AppTextStyles.buttonLabel),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   void _showDigitalIDModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -517,7 +436,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.10),
+                            color: Colors.black.withOpacity(0.22),
                             blurRadius: 16,
                             offset: const Offset(5, 5),
                           ),
@@ -708,14 +627,14 @@ class _DigitalIDModalState extends State<_DigitalIDModal> {
               borderRadius: BorderRadius.circular(AppRadius.xxl),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.10),
-                  blurRadius: 20,
-                  offset: const Offset(6, 6),
+                  color: Colors.black.withOpacity(0.22),
+                  blurRadius: 30,
+                  offset: const Offset(10, 10),
                 ),
                 const BoxShadow(
                   color: Colors.white,
-                  blurRadius: 20,
-                  offset: Offset(-6, -6),
+                  blurRadius: 30,
+                  offset: Offset(-10, -10),
                 ),
               ],
             ),
@@ -803,13 +722,13 @@ class _AccountActionTile extends StatelessWidget {
             boxShadow: [
               BoxShadow(
                 color: Colors.white,
-                offset: const Offset(-4, -4),
-                blurRadius: 10,
+                offset: const Offset(-10, -10),
+                blurRadius: 16,
               ),
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.06),
-                offset: const Offset(4, 4),
-                blurRadius: 10,
+                offset: const Offset(10, 10),
+                blurRadius: 16,
               ),
             ],
           ),

@@ -64,13 +64,13 @@ class _ComingSoonScreenState extends State<ComingSoonScreen>
                             color: Colors.black
                                 .withOpacity(0.10 + _pulse.value * 0.05),
                             blurRadius: 28,
-                            offset: const Offset(8, 8),
+                            offset: const Offset(14, 14),
                           ),
                           BoxShadow(
                             color: Colors.white
                                 .withOpacity(0.9 + _pulse.value * 0.1),
                             blurRadius: 28,
-                            offset: const Offset(-8, -8),
+                            offset: const Offset(-14, -14),
                           ),
                         ],
                       ),
@@ -215,24 +215,24 @@ class _NeumorphicButtonState extends State<_NeumorphicButton> {
                   const BoxShadow(
                     color: Colors.white,
                     blurRadius: 6,
-                    offset: Offset(-2, -2),
+                    offset: Offset(-10, -10),
                   ),
                   BoxShadow(
                     color: Colors.black.withOpacity(0.06),
                     blurRadius: 6,
-                    offset: const Offset(2, 2),
+                    offset: const Offset(10, 10),
                   ),
                 ]
               : [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.13),
-                    blurRadius: 18,
-                    offset: const Offset(6, 6),
+                    color: Colors.black.withOpacity(0.25),
+                    blurRadius: 28,
+                    offset: const Offset(10, 10),
                   ),
                   const BoxShadow(
                     color: Colors.white,
-                    blurRadius: 18,
-                    offset: Offset(-6, -6),
+                    blurRadius: 28,
+                    offset: Offset(-10, -10),
                   ),
                 ],
         ),

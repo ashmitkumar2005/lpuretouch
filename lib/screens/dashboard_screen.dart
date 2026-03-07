@@ -4,13 +4,18 @@ import 'package:flutter/services.dart';
 import 'package:dio/dio.dart';
 import '../services/auth_service.dart';
 import 'profile_screen.dart';
+import '../services/quick_access_service.dart';
 import '../main.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/app_text_styles.dart';
+import '../widgets/shimmer_loading.dart';
 import '../widgets/app_card.dart';
 import '../widgets/animated_list_item.dart';
 import '../widgets/error_retry_widget.dart';
 import 'announcements_screen.dart';
+import 'messages_screen.dart';
+import '../widgets/liquid_search_overlay.dart';
+import '../services/notification_service.dart';
 
 const Map<String, IconData> _menuIcons = {
   'Announcements': Icons.campaign_outlined,
@@ -42,6 +47,8 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   final _authService = AuthService();
+  final _quickAccessService = QuickAccessService();
+  final _notificationService = NotificationService();
   Map<String, dynamic>? _user;
   List<dynamic> _menus = [];
   List<dynamic>? _timetable;
@@ -51,10 +58,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
+    _notificationService.init();
     // Defer heavy work until AFTER the route entry animation completes.
     // During the 300ms transition only the skeleton is shown — lightweight.
     // Once the screen settles, _load() fires and AnimatedListItem stagger begins.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _quickAccessService.init();
       Future.delayed(AppDurations.medium, () {
         if (mounted) _load();
       });
@@ -100,11 +109,25 @@ class _DashboardScreenState extends State<DashboardScreen> {
     await _load(forceRefresh: true);
   }
 
-  // Filter out redundant items now available in the header
-  List<dynamic> get _filtered =>
-      _menus.where((item) =>
+  // Filter based on user selection in QuickAccessService
+  List<dynamic> _getFilteredItems(List<dynamic> menus, List<String> selected) {
+    if (selected.isEmpty) {
+      return menus.where((item) =>
           item['MenuText'] != 'Announcements' &&
-          item['MenuText'] != 'Messages').toList();
+          item['MenuText'] != 'Messages').take(6).toList();
+    }
+    
+    // Sort and filter based on selection
+    final List<dynamic> filtered = [];
+    for (var title in selected) {
+      final match = menus.firstWhere(
+        (m) => m['MenuText'] == title, 
+        orElse: () => null
+      );
+      if (match != null) filtered.add(match);
+    }
+    return filtered;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -143,135 +166,207 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       // 1. Top User Profile Header
                       AnimatedListItem(
                         index: 0,
-                        child: Row(
+                        child: Stack(
+                          alignment: Alignment.centerRight,
                           children: [
-                            GestureDetector(
-                              onTap: () {
-                                if (_user != null) {
-                                  GlobalLayout.of(context)?.navigateTo(
-                                      3, ProfileScreen(user: _user!), '/profile');
-                                }
-                              },
-                              behavior: HitTestBehavior.opaque,
-                              child: Semantics(
-                                button: true,
-                                label: 'Open profile',
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // Step 11: Hero wrapping avatar
-                                    Hero(
-                                      tag: 'user-avatar',
-                                      child: Container(
-                                        padding: const EdgeInsets.all(3),
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              AppColors.primaryBlue.withValues(alpha: 0.5),
-                                              AppColors.primaryBlue.withValues(alpha: 0.1),
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                        ),
-                                        child: Container(
-                                          width: 44,
-                                          height: 44,
-                                          decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: Colors.white,
-                                            boxShadow: [
-                                              BoxShadow(
-                                                color: Colors.black.withValues(alpha: 0.05),
-                                                blurRadius: 10,
-                                                offset: const Offset(0, 4),
+                            Row(
+                              children: [
+                                GestureDetector(
+                                  onTap: () {
+                                    if (_user != null) {
+                                      GlobalLayout.of(context)?.navigateTo(
+                                          3, ProfileScreen(user: _user!), '/profile');
+                                    }
+                                  },
+                                  behavior: HitTestBehavior.opaque,
+                                  child: Semantics(
+                                    button: true,
+                                    label: 'Open profile',
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Hero(
+                                          tag: 'user-avatar',
+                                          child: Container(
+                                            padding: const EdgeInsets.all(3),
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              gradient: LinearGradient(
+                                                colors: [
+                                                  AppColors.primaryBlue.withValues(alpha: 0.5),
+                                                  AppColors.primaryBlue.withValues(alpha: 0.1),
+                                                ],
+                                                begin: Alignment.topLeft,
+                                                end: Alignment.bottomRight,
                                               ),
-                                            ],
-                                          ),
-                                          child: ClipOval(
-                                            child: Center(
-                                              child: Text(
-                                                name.isNotEmpty ? name[0] : 'U',
-                                                style: AppTextStyles.headline.copyWith(
-                                                  color: AppColors.primaryBlue,
-                                                  fontWeight: FontWeight.w800,
+                                            ),
+                                            child: Container(
+                                              width: 44,
+                                              height: 44,
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                                color: AppColors.bgDashboard,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black.withOpacity(0.25),
+                                                    blurRadius: 20,
+                                                    offset: const Offset(10, 10),
+                                                  ),
+                                                  const BoxShadow(
+                                                    color: Colors.white,
+                                                    blurRadius: 20,
+                                                    offset: Offset(-10, -10),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: ClipOval(
+                                                child: Center(
+                                                  child: Text(
+                                                    name.isNotEmpty ? name[0] : 'U',
+                                                    style: AppTextStyles.headline.copyWith(
+                                                      color: AppColors.primaryBlue,
+                                                      fontWeight: FontWeight.w800,
+                                                    ),
+                                                  ),
                                                 ),
                                               ),
                                             ),
                                           ),
                                         ),
-                                      ),
+                                        const SizedBox(width: AppSpacing.md),
+                                      ],
                                     ),
-                                    const SizedBox(width: AppSpacing.md),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                            Expanded(
-                              child: GestureDetector(
-                                onTap: () {
-                                  if (_user != null) {
-                                    GlobalLayout.of(context)?.navigateTo(
-                                        3, ProfileScreen(user: _user!), '/profile');
-                                  }
-                                },
-                                behavior: HitTestBehavior.opaque,
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Semantics(
-                                      header: true,
-                                      child: Text(
-                                        'HI, ${name.toUpperCase()}',
-                                        style: AppTextStyles.headline.copyWith(
-                                            color: AppColors.textPrimary),
-                                      ),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      if (_user != null) {
+                                        GlobalLayout.of(context)?.navigateTo(
+                                            3, ProfileScreen(user: _user!), '/profile');
+                                      }
+                                    },
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Semantics(
+                                          header: true,
+                                          child: Text(
+                                            'HI, ${name.toUpperCase()}',
+                                            style: AppTextStyles.headline.copyWith(
+                                                color: AppColors.textPrimary),
+                                          ),
+                                        ),
+                                        Text(
+                                          regNo,
+                                          style: AppTextStyles.footnote,
+                                        ),
+                                      ],
                                     ),
-                                    Text(
-                                      regNo,
-                                      style: AppTextStyles.footnote,
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                            Semantics(
-                              button: true,
-                              label: 'Messages',
-                              child: AppCard(
-                                width: 44,
-                                height: 44,
-                                padding: EdgeInsets.zero,
-                                radius: 22,
-                                onTap: () {},
-                                child: Icon(
-                                  Icons.message_outlined,
-                                  color: AppColors.textPrimary.withValues(alpha: 0.7),
-                                  size: 20,
+                                // Spacing for the search button which is positioned as overlay
+                                const SizedBox(width: 44 + AppSpacing.md),
+                                // Messages Button with Notification Dot
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _notificationService.hasUnreadMessages,
+                                  builder: (context, hasUnread, _) {
+                                    return Stack(
+                                      children: [
+                                        _CircleButton(
+                                          icon: Icons.chat_bubble_outline_rounded,
+                                          label: 'Messages',
+                                          onTap: () async {
+                                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesScreen()));
+                                            _notificationService.refresh();
+                                          },
+                                        ),
+                                        if (hasUnread)
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: BoxDecoration(
+                                                color: Colors.redAccent,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: AppColors.bgDashboard, width: 2),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
                                 ),
-                              ),
+                                const SizedBox(width: AppSpacing.md),
+                                // Announcements Button with Notification Dot
+                                ValueListenableBuilder<bool>(
+                                  valueListenable: _notificationService.hasUnreadAnnouncements,
+                                  builder: (context, hasUnread, _) {
+                                    return Stack(
+                                      children: [
+                                        _CircleButton(
+                                          icon: Icons.campaign_outlined,
+                                          label: 'Announcements',
+                                          onTap: () async {
+                                            await Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
+                                            _notificationService.refresh();
+                                          },
+                                        ),
+                                        if (hasUnread)
+                                          Positioned(
+                                            top: 8,
+                                            right: 8,
+                                            child: Container(
+                                              width: 10,
+                                              height: 10,
+                                              decoration: BoxDecoration(
+                                                color: Colors.redAccent,
+                                                shape: BoxShape.circle,
+                                                border: Border.all(color: AppColors.bgDashboard, width: 2),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
                             ),
-                            const SizedBox(width: AppSpacing.md),
-                            Semantics(
-                              button: true,
-                              label: 'Announcements',
-                              child: AppCard(
-                                width: 44,
-                                height: 44,
-                                padding: EdgeInsets.zero,
-                                radius: 22,
-                                onTap: () {
+                            // Liquid Search Drop Button
+                            Positioned(
+                              right: 44 * 2 + AppSpacing.md * 2,
+                              child: _LiquidSearchButton(
+                                onOpen: (origin) {
                                   Navigator.push(
                                     context,
-                                    MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+                                    PageRouteBuilder(
+                                      opaque: false,
+                                      pageBuilder: (context, _, __) => LiquidSearchOverlay(
+                                        origin: origin,
+                                        menus: _menus,
+                                        onItemSelected: (item) {
+                                          final title = item['MenuText'];
+                                          if (title == 'Announcements') {
+                                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AnnouncementsScreen()));
+                                          } else if (title == 'Messages') {
+                                            Navigator.push(context, MaterialPageRoute(builder: (_) => const MessagesScreen()));
+                                          } else {
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              SnackBar(
+                                                content: Text('Opening $title...'),
+                                                behavior: SnackBarBehavior.floating,
+                                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                      ),
+                                    ),
                                   );
                                 },
-                                child: Icon(
-                                  Icons.campaign_outlined,
-                                  color: AppColors.textPrimary.withValues(alpha: 0.7),
-                                  size: 22,
-                                ),
                               ),
                             ),
                           ],
@@ -320,8 +415,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       // 4. Quick Access Card
                       AnimatedListItem(
                         index: 3,
-                        child: AppCard(
+                        child: Container(
                           padding: const EdgeInsets.all(AppSpacing.md),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgDashboard,
+                            borderRadius: BorderRadius.circular(AppRadius.lg),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.25),
+                                blurRadius: 30,
+                                offset: const Offset(14, 14),
+                              ),
+                              const BoxShadow(
+                                color: Colors.white,
+                                blurRadius: 30,
+                                offset: Offset(-14, -14),
+                              ),
+                            ],
+                          ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -335,20 +446,26 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ],
                               ),
                               const SizedBox(height: AppSpacing.sm),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: const NeverScrollableScrollPhysics(),
-                                padding: EdgeInsets.zero,
-                                gridDelegate:
-                                    const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 3,
-                                  crossAxisSpacing: 8,
-                                  mainAxisSpacing: 10,
-                                  childAspectRatio: 1.15,
-                                ),
-                                itemCount: _filtered.length > 6 ? 6 : _filtered.length,
-                                itemBuilder: (context, index) =>
-                                    _MenuCard(item: _filtered[index]),
+                              ValueListenableBuilder<List<String>>(
+                                valueListenable: _quickAccessService.selectedItemsNotifier,
+                                builder: (context, selected, _) {
+                                  final items = _getFilteredItems(_menus, selected);
+                                  return GridView.builder(
+                                    shrinkWrap: true,
+                                    physics: const NeverScrollableScrollPhysics(),
+                                    padding: EdgeInsets.zero,
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      crossAxisSpacing: 8,
+                                      mainAxisSpacing: 10,
+                                      childAspectRatio: 1.15,
+                                    ),
+                                    itemCount: items.length,
+                                    itemBuilder: (context, index) =>
+                                        _MenuCard(item: items[index]),
+                                  );
+                                },
                               ),
                             ],
                           ),
@@ -470,14 +587,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   borderRadius: BorderRadius.circular(AppRadius.lg),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 15,
-                      offset: const Offset(4, 4),
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 30,
+                      offset: const Offset(14, 14),
                     ),
                     const BoxShadow(
                       color: Colors.white,
-                      blurRadius: 15,
-                      offset: Offset(-4, -4),
+                      blurRadius: 30,
+                      offset: Offset(-14, -14),
                     ),
                   ],
                 ),
@@ -595,14 +712,14 @@ class _MenuCardState extends State<_MenuCard> {
                   color: AppColors.bgDashboard,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 10,
-                      offset: const Offset(3, 3),
+                      color: Colors.black.withOpacity(0.25),
+                      blurRadius: 20,
+                      offset: const Offset(10, 10),
                     ),
                     const BoxShadow(
                       color: Colors.white,
-                      blurRadius: 10,
-                      offset: Offset(-3, -3),
+                      blurRadius: 20,
+                      offset: Offset(-10, -10),
                     ),
                   ],
                 ),
@@ -652,143 +769,175 @@ class _DashboardSkeleton extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // 1. Header Skeleton
                 Row(
                   children: [
-                    const _ShimmerBox(
-                        width: 44, height: 44, borderRadius: AppRadius.pill),
+                    ShimmerLoading.circle(size: 50), // Avatar
                     const SizedBox(width: AppSpacing.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: const [
-                          _ShimmerBox(width: 100, height: 16, borderRadius: 4),
-                          SizedBox(height: 6),
-                          _ShimmerBox(width: 140, height: 13, borderRadius: 4),
-                        ],
-                      ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        ShimmerLoading(width: 80, height: 18, borderRadius: 4),
+                        SizedBox(height: 6),
+                        ShimmerLoading(width: 120, height: 12, borderRadius: 4),
+                      ],
                     ),
-                    const _ShimmerBox(
-                        width: 44, height: 44, borderRadius: AppRadius.pill),
+                    const Spacer(),
+                    ShimmerLoading.circle(size: 44), // Messages
+                    const SizedBox(width: AppSpacing.md),
+                    ShimmerLoading.circle(size: 44), // Announcements
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xxxl),
-                const _ShimmerBox(
-                    width: 250, height: 32, borderRadius: AppRadius.sm),
-                const SizedBox(height: AppSpacing.xxl),
-                const _ShimmerBox(
-                    width: double.infinity, height: 56, borderRadius: AppRadius.xl),
-                const SizedBox(height: AppSpacing.xxl),
-                const _ShimmerBox(
-                    width: double.infinity, height: 180, borderRadius: AppRadius.xxl),
-                const SizedBox(height: AppSpacing.xxl),
+                const SizedBox(height: AppSpacing.xl),
+
+                // 2. Greeting
+                ShimmerLoading(width: 100, height: 16, borderRadius: 4),
+                const SizedBox(height: 8),
+                ShimmerLoading(width: 180, height: 24, borderRadius: 4),
+                const SizedBox(height: AppSpacing.lg),
+
+                // 3. Timetable Title
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Expanded(
-                        child: Divider(
-                            color: Colors.grey.withOpacity(0.2), thickness: 1)),
-                    const SizedBox(width: AppSpacing.lg),
-                    const _ShimmerBox(
-                        width: 120, height: 26, borderRadius: AppRadius.pill),
-                    const SizedBox(width: AppSpacing.lg),
-                    Expanded(
-                        child: Divider(
-                            color: Colors.grey.withOpacity(0.2), thickness: 1)),
+                    ShimmerLoading(width: 150, height: 20, borderRadius: 4),
+                    ShimmerLoading.circle(size: 20),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.xxl),
-                const _ShimmerBox(
-                    width: double.infinity,
-                    height: 150,
-                    borderRadius: AppRadius.xxl),
-                const SizedBox(height: AppSpacing.xxxl),
+                const SizedBox(height: AppSpacing.lg),
+
+                // 3. Timetable Grid (2x4)
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    mainAxisSpacing: AppSpacing.xl,
+                    crossAxisSpacing: AppSpacing.xl,
+                    mainAxisExtent: 85,
+                  ),
+                  itemCount: 8,
+                  itemBuilder: (_, __) => const ShimmerLoading(
+                      width: double.infinity, height: 85, borderRadius: AppRadius.lg),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+
+                // 4. Quick Access Card
+                const ShimmerLoading(
+                  width: double.infinity,
+                  height: 180,
+                  borderRadius: AppRadius.lg,
+                ),
+                const SizedBox(height: AppSpacing.dockBuffer),
               ],
             ),
           ),
         ),
-        const Positioned(
+        // 5. Floating Dock Skeleton
+        Positioned(
           bottom: 24,
           left: 24,
           right: 24,
-          child: _ShimmerBox(
-              width: double.infinity, height: 72, borderRadius: 36),
+          child: Center(
+            child: ShimmerLoading(
+              width: MediaQuery.of(context).size.width * 0.7,
+              height: 64,
+              borderRadius: 32,
+            ),
+          ),
         ),
       ],
     );
   }
 }
 
-class _ShimmerBox extends StatefulWidget {
-  final double width;
-  final double height;
-  final double borderRadius;
-  final bool light;
 
-  const _ShimmerBox({
-    required this.width,
-    required this.height,
-    required this.borderRadius,
-    this.light = false,
+
+class _CircleButton extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  final String label;
+
+  const _CircleButton({
+    required this.icon,
+    required this.onTap,
+    required this.label,
   });
 
   @override
-  State<_ShimmerBox> createState() => _ShimmerBoxState();
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: label,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.bgDashboard,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.25),
+                blurRadius: 20,
+                offset: const Offset(10, 10),
+              ),
+              const BoxShadow(
+                color: Colors.white,
+                blurRadius: 20,
+                offset: Offset(-10, -10),
+              ),
+            ],
+          ),
+          child: Icon(
+            icon,
+            color: AppColors.textPrimary.withValues(alpha: 0.7),
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _ShimmerBoxState extends State<_ShimmerBox>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<Offset> _slide;
+class _LiquidSearchButton extends StatelessWidget {
+  final Function(Offset) onOpen;
 
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1500))
-      ..repeat();
-    _slide =
-        Tween<Offset>(begin: const Offset(-1.5, 0), end: const Offset(1.5, 0))
-            .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOutSine));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
+  const _LiquidSearchButton({required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
-    final baseColor =
-        widget.light ? Colors.white.withAlpha(20) : Colors.black.withAlpha(10);
-    final highlightColor =
-        widget.light ? Colors.white.withAlpha(50) : Colors.black.withAlpha(25);
-
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(widget.borderRadius),
-      child: SizedBox(
-        width: widget.width,
-        height: widget.height,
-        child: Stack(
-          children: [
-            Container(color: baseColor),
-            Positioned.fill(
-              child: SlideTransition(
-                position: _slide,
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      stops: const [0.0, 0.5, 1.0],
-                      colors: [
-                        Colors.transparent,
-                        highlightColor,
-                        Colors.transparent
-                      ],
-                    ),
-                  ),
-                ),
-              ),
+    return GestureDetector(
+      onTap: () {
+        final renderContent = context.findRenderObject() as RenderBox;
+        final position = renderContent.localToGlobal(Offset.zero);
+        final center = position + Offset(renderContent.size.width / 2, renderContent.size.height / 2);
+        onOpen(center);
+      },
+      child: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: AppColors.bgDashboard,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.25),
+              blurRadius: 20,
+              offset: const Offset(10, 10),
+            ),
+            const BoxShadow(
+              color: Colors.white,
+              blurRadius: 20,
+              offset: Offset(-10, -10),
             ),
           ],
+        ),
+        child: const Icon(
+          Icons.search_rounded,
+          color: AppColors.textPrimary,
+          size: 24,
         ),
       ),
     );
