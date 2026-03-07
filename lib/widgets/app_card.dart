@@ -13,6 +13,8 @@ class AppCard extends StatelessWidget {
   final bool isGlass;
   final VoidCallback? onTap;
   final double radius;
+  final double? width;
+  final double? height;
 
   const AppCard({
     super.key,
@@ -21,6 +23,8 @@ class AppCard extends StatelessWidget {
     this.isGlass = false,
     this.onTap,
     this.radius = AppRadius.xl,
+    this.width,
+    this.height,
   });
 
   @override
@@ -50,6 +54,8 @@ class AppCard extends StatelessWidget {
       );
     } else {
       content = Container(
+        width: width,
+        height: height,
         decoration: BoxDecoration(
           color: AppColors.cardWhite,
           borderRadius: clipRadius,

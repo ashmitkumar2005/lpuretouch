@@ -7,6 +7,9 @@ import '../main.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/app_text_styles.dart';
 import '../widgets/success_checkmark.dart';
+import '../widgets/shimmer_loading.dart';
+import '../widgets/error_retry_widget.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -97,34 +100,61 @@ class _LoginScreenState extends State<LoginScreen>
     if (!_formKey.currentState!.validate()) return;
     setState(() { _loading = true; _error = null; });
     try {
+      print('[LOGIN_SCREEN] Starting login for: ${_userIdCtrl.text.trim()}');
       final result = await _authService.login(
           _userIdCtrl.text.trim(), _passwordCtrl.text);
+      print('[LOGIN_SCREEN] Result: ${result['success']}');
+      
       if (!mounted) return;
       if (result['success'] == true) {
         if (mounted) {
-          GlobalLayout.of(context)?.refreshAuthState();
+          print('[LOGIN_SCREEN] Login success, showing checkmark...');
+          // AuthService already fired updateLoginState(true)
           // Step 10: Show SuccessCheckmark dialog for 800ms then navigate
+          bool dialogPopped = false;
+          // Wait for the success dialog to finish and pop
           await showDialog(
             context: context,
             barrierColor: Colors.black26,
             barrierDismissible: false,
-            builder: (ctx) => Center(
-              child: SuccessCheckmark(
-                size: 80,
-                onComplete: () async {
-                  await Future.delayed(const Duration(milliseconds: 800));
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                },
-              ),
-            ),
+            builder: (ctx) {
+              // Safety timeout
+              Future.delayed(const Duration(milliseconds: 2500), () {
+                if (ctx.mounted && !dialogPopped) {
+                  dialogPopped = true;
+                  Navigator.of(ctx).pop();
+                }
+              });
+              
+              return Center(
+                child: SuccessCheckmark(
+                  size: 80,
+                  onComplete: () async {
+                    if (!dialogPopped) {
+                      dialogPopped = true;
+                      // Small delay for the user to see the full checkmark
+                      await Future.delayed(const Duration(milliseconds: 400));
+                      if (ctx.mounted) Navigator.of(ctx).pop();
+                    }
+                  },
+                ),
+              );
+            },
           );
-          if (mounted) Navigator.pushReplacementNamed(context, '/dashboard');
+
+          if (mounted) {
+            print('[LOGIN_SCREEN] Navigating to dashboard');
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          }
         }
       } else {
-        setState(() => _error = result['error'] ?? 'Login failed');
+        print('[LOGIN_SCREEN] Login failed: ${result['error']}');
+        setState(() => _error = ErrorRetryWidget.friendlyMessage(result['error'] ?? 'Login failed'));
       }
-    } catch (e) {
-      setState(() => _error = e.toString().replaceAll('Exception: ', ''));
+    } catch (e, stack) {
+      print('[LOGIN_SCREEN] Exception: $e');
+      print(stack);
+      setState(() => _error = ErrorRetryWidget.friendlyMessage(e.toString()));
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -151,6 +181,7 @@ class _LoginScreenState extends State<LoginScreen>
         ),
         child: SafeArea(
           child: SingleChildScrollView(
+            physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Column(
               children: [
@@ -228,16 +259,16 @@ class _LoginScreenState extends State<LoginScreen>
                     child: ClipRRect(
                       borderRadius: BorderRadius.circular(40),
                       child: BackdropFilter(
-                        filter: ui.ImageFilter.blur(sigmaX: 20, sigmaY: 20),
+                        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
                         child: Container(
                           width: double.infinity,
                           padding: const EdgeInsets.fromLTRB(32, 40, 32, 36),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.7),
+                            color: Colors.white.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(40),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.5),
-                              width: 1.5,
+                              color: Colors.white.withValues(alpha: 0.3),
+                              width: 1.0,
                             ),
                             boxShadow: [
                               BoxShadow(
@@ -263,7 +294,7 @@ class _LoginScreenState extends State<LoginScreen>
                                     // Step 10: subtitle alpha raised from 0.4 → 0.7
                                     Text('Sign in to continue to LPU Touch',
                                         style: AppTextStyles.subhead.copyWith(
-                                          color: AppColors.textSecondary.withOpacity(0.70),
+                                          color: AppColors.textPrimary.withOpacity(0.6),
                                         )),
                                     const SizedBox(height: 32),
 
@@ -358,16 +389,20 @@ class _LoginScreenState extends State<LoginScreen>
                                               horizontal: AppSpacing.md,
                                               vertical: AppSpacing.xs,
                                             ),
-                                            child: Row(
-                                              mainAxisAlignment: MainAxisAlignment.center,
-                                              children: [
-                                                Text('New Here? ', style: AppTextStyles.footnote),
-                                                Text('Guest Access',
+                                            child: RichText(
+                                              text: TextSpan(
+                                                style: AppTextStyles.footnote,
+                                                children: [
+                                                  const TextSpan(text: 'New Here? '),
+                                                  TextSpan(
+                                                    text: 'Guest Access',
                                                     style: AppTextStyles.footnote.copyWith(
                                                       color: AppColors.brandOrangeGlow,
-                                                      fontWeight: FontWeight.w600,
-                                                    )),
-                                              ],
+                                                      fontWeight: FontWeight.w700,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                           ),
                                         ),
@@ -383,7 +418,7 @@ class _LoginScreenState extends State<LoginScreen>
                     ),
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xxxl),
+                const SizedBox(height: 100),
               ],
             ),
           ),
@@ -494,19 +529,12 @@ class _LiquidGlassFieldState extends State<_LiquidGlassField>
                     // Base unfocused background (Static)
                     Container(
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFC).withValues(alpha: 0.5),
+                        color: Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
-                          color: const Color(0xFFE2E8F0).withValues(alpha: 0.8),
+                          color: Colors.white.withValues(alpha: 0.2),
                           width: 1.0,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.05),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
                       ),
                     ),
                     // GPU-Accelerated Focused Background Glow
@@ -706,9 +734,12 @@ class _AnimatedButtonState extends State<_AnimatedButton>
                   Center(
                     child: widget.loading
                         ? const SizedBox(
-                            height: 24, width: 24,
-                            child: CircularProgressIndicator(
-                                color: Color(0xFFFF8C00), strokeWidth: 2),
+                            height: 24, width: 80,
+                            child: ShimmerLoading(
+                              width: 80, 
+                              height: 20, 
+                              borderRadius: 4,
+                            ),
                           )
                         : const Text(
                             'Sign In',

@@ -44,6 +44,19 @@ void main() async {
                      } else {
                         print("Not a JWT token");
                      }
+                     
+                     // FETCH TIMETABLE
+                     print("\n--- FETCHING TIMETABLE ---");
+                     final ttData = { "Token": tok };
+                     final ttEnc = LpuCrypto.encryptPayload(data: ttData, url: "GetDEx", action: "post");
+                     final ttRes = await dio.post("https://ums.lpu.in/umswebservice/umswebservice.svc/UMS", data: ttEnc);
+                     
+                     if (ttRes.data != null && ttRes.data['UMSResult'] != null) {
+                       print("TIMETABLE RAW: " + ttRes.data['UMSResult']);
+                     } else {
+                       print("Failed to fetch timetable: ${ttRes.data}");
+                     }
+                     
                  } else {
                     print(jsonEncode(decoded));
                  }

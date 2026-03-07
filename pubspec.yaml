@@ -11,10 +11,13 @@ dependencies:
     sdk: flutter
   
   # HTTP client
-  dio: ^5.4.0
+  dio: ^5.9.2
   
   # Secure local storage for token
   flutter_secure_storage: ^10.0.0
+  
+  # General-purpose cache (TTL timestamps, non-sensitive data)
+  shared_preferences: ^2.3.2
   
   # AES-256-CBC encryption
   encrypt: ^5.0.3
@@ -33,6 +36,12 @@ dependencies:
   
   # Icons
   cupertino_icons: ^1.0.6
+  shimmer: ^3.0.0
+  connectivity_plus: ^7.0.0
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  cached_network_image: ^3.4.1
+  flutter_riverpod: ^3.2.1
 
 dev_dependencies:
   flutter_test:
@@ -49,9 +58,21 @@ flutter:
         - asset: assets/fonts/virgo.ttf
     - family: SF Pro Display
       fonts:
-        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Regular.otf
+        - asset: assets/fonts/sf_pro/SF-Pro-Display-Regular.otf
           weight: 400
-        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Medium.otf
+        - asset: assets/fonts/sf_pro/SF-Pro-Display-Medium.otf
           weight: 500
-        - asset: assets/fonts/SF-Pro/SF-Pro-Display-Bold.otf
+        - asset: assets/fonts/sf_pro/SF-Pro-Display-Semibold.otf
+          weight: 600
+        - asset: assets/fonts/sf_pro/SF-Pro-Display-Bold.otf
+          weight: 700
+    - family: SF Pro Text
+      fonts:
+        - asset: assets/fonts/sf_pro/SF-Pro-Text-Regular.otf
+          weight: 400
+        - asset: assets/fonts/sf_pro/SF-Pro-Text-Medium.otf
+          weight: 500
+        - asset: assets/fonts/sf_pro/SF-Pro-Text-Semibold.otf
+          weight: 600
+        - asset: assets/fonts/sf_pro/SF-Pro-Text-Bold.otf
           weight: 700

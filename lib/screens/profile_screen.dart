@@ -1,10 +1,15 @@
 import 'dart:convert';
+import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:dio/dio.dart';
 import '../services/auth_service.dart';
 import '../main.dart';
 import '../core/theme/design_tokens.dart';
 import '../core/theme/app_text_styles.dart';
 import '../widgets/animated_list_item.dart';
+import '../widgets/app_card.dart';
+import '../widgets/shimmer_loading.dart';
+import '../widgets/error_retry_widget.dart';
 
 class ProfileScreen extends StatelessWidget {
   final Map<String, dynamic> user;
@@ -28,7 +33,8 @@ class ProfileScreen extends StatelessWidget {
         (user['StudentEmail'] ?? user['Email'] ?? 'N/A').toString();
     final program =
         (user['ProgramName'] ?? user['Program'] ?? 'N/A').toString();
-    final session = (user['AdmissionSession'] ?? 'N/A').toString();
+    final sessionRaw = (user['AdmissionSession'] ?? 'N/A').toString();
+    final session = sessionRaw.split('-')[0];
 
     return Scaffold(
       backgroundColor: AppColors.bgDashboard,
@@ -46,12 +52,9 @@ class ProfileScreen extends StatelessWidget {
           Semantics(
             button: true,
             label: 'Digital ID QR Code',
-            child: Tooltip(
-              message: 'Digital ID',
-              child: _CircularActionButton(
-                icon: Icons.qr_code_outlined,
-                onTap: () => _showDigitalIDModal(context),
-              ),
+            child: _CircularActionButton(
+              icon: Icons.qr_code_outlined,
+              onTap: () => _showDigitalIDModal(context),
             ),
           ),
           Semantics(
@@ -59,15 +62,7 @@ class ProfileScreen extends StatelessWidget {
             label: 'Logout',
             child: _CircularActionButton(
               icon: Icons.logout_outlined,
-              onTap: () async {
-                await AuthService().logout();
-                if (context.mounted) {
-                  // Tell GlobalLayout to hide the dock immediately
-                  GlobalLayout.of(context)?.refreshAuthState();
-                  Navigator.of(context)
-                      .pushNamedAndRemoveUntil('/login', (r) => false);
-                }
-              },
+              onTap: () => _showLogoutConfirmation(context),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -88,38 +83,42 @@ class ProfileScreen extends StatelessWidget {
                   tag: 'user-avatar',
                   child: Material(
                     color: Colors.transparent,
-                    child: Container(
-                      // Outer ring with 3px padding + 3px border
-                      padding: const EdgeInsets.all(3),
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: AppColors.primaryBlue.withOpacity(0.15),
-                          width: 3,
-                        ),
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.bgDashboard, // Match background for neumorphic effect
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.white,
+                        offset: const Offset(-4, -4),
+                        blurRadius: 10,
                       ),
-                      child: Container(
-                        width: 104,
-                        height: 104,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppColors.avatarGradA, AppColors.avatarGradB],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Text(
-                            initials,
-                            style: AppTextStyles.title1.copyWith(
-                              color: AppColors.avatarInitials,
-                              letterSpacing: -1,
-                            ),
-                          ),
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        offset: const Offset(4, 4),
+                        blurRadius: 10,
+                      ),
+                    ],
+                  ),
+                  child: Container(
+                    width: 104,
+                    height: 104,
+                    decoration: const BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white,
+                    ),
+                    child: Center(
+                      child: Text(
+                        initials,
+                        style: AppTextStyles.largeTitle.copyWith(
+                          color: AppColors.primaryBlue,
+                          fontSize: 32,
                         ),
                       ),
                     ),
+                  ),
+                ),
                   ),
                 ),
               ),
@@ -142,102 +141,77 @@ class ProfileScreen extends StatelessWidget {
             AnimatedListItem(
               index: 2,
               child: Text(
-                email != 'N/A' ? email : regNo,
-                style: AppTextStyles.subhead,
+                regNo,
+                style: AppTextStyles.subhead.copyWith(
+                  color: AppColors.textPrimary.withOpacity(0.5),
+                ),
               ),
             ),
             const SizedBox(height: AppSpacing.xxl),
 
-            // Academic card
+            // Academic card (Neumorphic)
             AnimatedListItem(
               index: 3,
               child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.all(AppSpacing.xl),
                 decoration: BoxDecoration(
-                  color: AppColors.cardWhite,
+                  color: AppColors.bgDashboard,
                   borderRadius: BorderRadius.circular(AppRadius.xxl),
-                  boxShadow: AppShadows.cardSoft,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white,
+                      offset: const Offset(-5, -5),
+                      blurRadius: 15,
+                    ),
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      offset: const Offset(5, 5),
+                      blurRadius: 15,
+                    ),
+                  ],
                 ),
                 child: Column(
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 56,
-                          height: 56,
-                          decoration: BoxDecoration(
-                            color: AppColors.bgDashboard,
-                            borderRadius: BorderRadius.circular(AppRadius.lg),
-                          ),
-                          child: const Icon(Icons.school_outlined,
-                              color: AppColors.primaryBlue, size: 28),
-                        ),
+                              Container(
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: AppColors.textPrimary.withValues(alpha: 0.05),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(Icons.school_outlined, color: AppColors.textPrimary.withValues(alpha: 0.7), size: 24),
+                              ),
                         const SizedBox(width: AppSpacing.lg),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('Academic Program',
-                                  style: AppTextStyles.footnote),
-                              const SizedBox(height: 2),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      program,
-                                      style: AppTextStyles.headline,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.visible,
-                                    ),
-                                  ),
-                                  Container(
-                                    margin: const EdgeInsets.only(left: AppSpacing.sm),
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: AppSpacing.sm + 2,
-                                        vertical: AppSpacing.xs),
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryBlue.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                                    ),
-                                    child: Text('Active',
-                                        style: AppTextStyles.caption.copyWith(
-                                          color: AppColors.primaryBlue,
-                                          fontWeight: FontWeight.w700,
-                                        )),
-                                  ),
-                                ],
+                              Text('ACADEMIC PROGRAM',
+                                  style: AppTextStyles.caption.copyWith(
+                                    letterSpacing: 1.0,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 10,
+                                  )),
+                              const SizedBox(height: 4),
+                              Text(
+                                program,
+                                style: AppTextStyles.headline.copyWith(
+                                  height: 1.2,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.visible,
                               ),
+                              const SizedBox(height: 2),
                               Text('Session: $session',
-                                  style: AppTextStyles.subhead),
+                                  style: AppTextStyles.subhead.copyWith(
+                                    fontSize: 13,
+                                  )),
                             ],
                           ),
                         ),
                       ],
-                    ),
-                    const SizedBox(height: AppSpacing.xl),
-                    Semantics(
-                      button: true,
-                      label: 'View academic details',
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.lg, vertical: AppSpacing.lg),
-                        decoration: BoxDecoration(
-                          color: AppColors.bgWhite,
-                          borderRadius: BorderRadius.circular(AppRadius.lg),
-                          border: Border.all(color: AppColors.borderSubtle),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('View Academic Details',
-                                style: AppTextStyles.headline),
-                            Icon(Icons.chevron_right_rounded,
-                                size: 20,
-                                color: AppColors.textTertiary),
-                          ],
-                        ),
-                      ),
                     ),
                   ],
                 ),
@@ -249,8 +223,7 @@ class ProfileScreen extends StatelessWidget {
             AnimatedListItem(
               index: 4,
               child: _AccountActionTile(
-                icon: Icons.person_search_outlined,
-                iconColor: const Color(0xFF6366F1),
+                icon: Icons.person_outline_rounded,
                 title: 'Basic Details',
                 subtitle: 'Father, Mother, DOB, Gender',
                 onTap: () => _showDetailsModal(context, 'Basic Details', {
@@ -264,8 +237,7 @@ class ProfileScreen extends StatelessWidget {
             AnimatedListItem(
               index: 5,
               child: _AccountActionTile(
-                icon: Icons.contact_emergency_outlined,
-                iconColor: AppColors.success,
+                icon: Icons.contact_mail_outlined,
                 title: 'Contact Details',
                 subtitle: 'Permanent & Correspondence Address',
                 onTap: () => _showDetailsModal(context, 'Contact Details', {
@@ -280,8 +252,7 @@ class ProfileScreen extends StatelessWidget {
             AnimatedListItem(
               index: 6,
               child: _AccountActionTile(
-                icon: Icons.history_edu_outlined,
-                iconColor: AppColors.warning,
+                icon: Icons.assignment_outlined,
                 title: 'Admission Info',
                 subtitle: 'Section, Batch, Agg Attendance',
                 onTap: () => _showDetailsModal(context, 'Admission Info', {
@@ -295,8 +266,7 @@ class ProfileScreen extends StatelessWidget {
             AnimatedListItem(
               index: 7,
               child: _AccountActionTile(
-                icon: Icons.meeting_room_outlined,
-                iconColor: const Color(0xFFEC4899),
+                icon: Icons.home_outlined,
                 title: 'Stay Information',
                 subtitle: 'Hostel, Room Status & More',
                 onTap: () {
@@ -330,16 +300,111 @@ class ProfileScreen extends StatelessWidget {
 
   // ─── Modal Helpers ──────────────────────────────────────────────────────────
 
+  void _showLogoutConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black26,
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+        child: Dialog(
+          backgroundColor: Colors.white.withValues(alpha: 0.9),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(AppRadius.xxl)),
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.xxl),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.logout_rounded,
+                      color: AppColors.error, size: 32),
+                ),
+                const SizedBox(height: AppSpacing.xl),
+                const Text('Logout?', style: AppTextStyles.title2),
+                const SizedBox(height: AppSpacing.sm),
+                Text(
+                  'Are you sure you want to sign out of your account?',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.subhead.copyWith(
+                    color: AppColors.textPrimary.withValues(alpha: 0.6),
+                  ),
+                ),
+                const SizedBox(height: AppSpacing.xxxl),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(0, 52),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg)),
+                        ),
+                        child: Text('Cancel',
+                            style: AppTextStyles.buttonLabel
+                                .copyWith(color: AppColors.textPrimary)),
+                      ),
+                    ),
+                    const SizedBox(width: AppSpacing.md),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          Navigator.pop(context); // Close dialog
+                          await AuthService().logout();
+                          if (context.mounted) {
+                            GlobalLayout.of(context)?.refreshAuthState();
+                            Navigator.of(context).pushNamedAndRemoveUntil(
+                                '/login', (r) => false);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(0, 52),
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(AppRadius.lg)),
+                        ),
+                        child: const Text('Logout',
+                            style: AppTextStyles.buttonLabel),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showDigitalIDModal(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.bgWhite,
+      backgroundColor: Colors.transparent, // Allow BackdropFilter to show
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.xxl)),
       ),
-      builder: (context) => _DigitalIDModal(user: user),
+      builder: (context) => BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.85),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+          ),
+          child: _DigitalIDModal(user: user),
+        ),
+      ),
     );
   }
 
@@ -348,25 +413,30 @@ class ProfileScreen extends StatelessWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.bgWhite,
+      backgroundColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.xxl)),
       ),
       builder: (context) {
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.9,
-          expand: false,
-          builder: (_, controller) {
-            return Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.screenH),
-              child: ListView(
-                controller: controller,
-                physics: const BouncingScrollPhysics(),
-                children: [
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            minChildSize: 0.4,
+            maxChildSize: 0.9,
+            expand: false,
+            builder: (_, controller) {
+              return Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.85),
+                  borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.screenH),
+                child: ListView(
+                  controller: controller,
+                  physics: const BouncingScrollPhysics(),
+                  children: [
                   // Step 12: Drag handle
                   const SizedBox(height: AppSpacing.sm),
                   Center(
@@ -427,10 +497,11 @@ class ProfileScreen extends StatelessWidget {
               ),
             );
           },
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 
   String _cleanValue(String val) {
     if (val == 'N/A' || val.trim().isEmpty) return 'N/A';
@@ -517,13 +588,28 @@ class _DigitalIDModalState extends State<_DigitalIDModal> {
   }
 
   Future<void> _loadQR() async {
-    final qr = await AuthService().fetchStudentQR();
-    if (mounted) {
-      setState(() {
-        _qrBase64 = qr;
-        _isLoading = false;
-        if (qr == null) _error = 'Failed to fetch Digital ID';
-      });
+    try {
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+          _error = null;
+        });
+      }
+      final qr = await AuthService().fetchStudentQR();
+      if (mounted) {
+        setState(() {
+          _qrBase64 = qr;
+          _isLoading = false;
+          if (qr == null) _error = 'No QR identity found';
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e is DioException ? 'Network Error: Check Connection' : e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
@@ -571,24 +657,14 @@ class _DigitalIDModalState extends State<_DigitalIDModal> {
                   const SizedBox(
                     height: 200,
                     child: Center(
-                        child: CircularProgressIndicator(
-                            color: AppColors.primaryBlue)),
+                        child: ShimmerLoading(width: 150, height: 150)),
                   )
                 else if (_error != null)
                   SizedBox(
-                    height: 200,
-                    child: Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.error_outline,
-                              color: AppColors.error, size: 48),
-                          const SizedBox(height: AppSpacing.lg),
-                          Text(_error!,
-                              style: AppTextStyles.footnote
-                                  .copyWith(color: AppColors.error)),
-                        ],
-                      ),
+                    height: 250,
+                    child: ErrorRetryWidget(
+                      message: ErrorRetryWidget.friendlyMessage(_error!),
+                      onRetry: _loadQR,
                     ),
                   )
                 else if (_qrBase64 != null)
@@ -633,14 +709,12 @@ class _DigitalIDModalState extends State<_DigitalIDModal> {
 // ─── Account Action Tile ──────────────────────────────────────────────────────
 class _AccountActionTile extends StatelessWidget {
   final IconData icon;
-  final Color iconColor;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _AccountActionTile({
     required this.icon,
-    required this.iconColor,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -648,47 +722,67 @@ class _AccountActionTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const Color iconColor = AppColors.textPrimary; // Monochromatic
     return Semantics(
       button: true,
       label: title,
       child: Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.xl),
-          child: Container(
-            padding: const EdgeInsets.all(AppSpacing.lg),
-            decoration: BoxDecoration(
-              color: AppColors.cardWhite,
-              borderRadius: BorderRadius.circular(AppRadius.xxl),
-              boxShadow: AppShadows.cardSoft,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: AppSpacing.massive,
-                  height: AppSpacing.massive,
-                  decoration: BoxDecoration(
-                    color: iconColor.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                  child: Icon(icon, color: iconColor, size: 24),
+        padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.bgDashboard,
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white,
+                offset: const Offset(-4, -4),
+                blurRadius: 10,
+              ),
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                offset: const Offset(4, 4),
+                blurRadius: 10,
+              ),
+            ],
+          ),
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              child: Padding(
+                padding: const EdgeInsets.all(AppSpacing.md),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        color: AppColors.textPrimary.withValues(alpha: 0.05),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(icon, color: iconColor.withValues(alpha: 0.7), size: 22),
+                    ),
+                    const SizedBox(width: AppSpacing.lg),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(title, style: AppTextStyles.headline.copyWith(fontSize: 15)),
+                          const SizedBox(height: 2),
+                          Text(subtitle,
+                              style: AppTextStyles.subhead.copyWith(
+                                fontSize: 12,
+                                color: AppColors.textPrimary.withValues(alpha: 0.5),
+                              )),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.chevron_right_rounded,
+                        size: 20, color: AppColors.textPrimary.withValues(alpha: 0.2)),
+                  ],
                 ),
-                const SizedBox(width: AppSpacing.lg),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: AppTextStyles.headline),
-                      const SizedBox(height: 2),
-                      Text(subtitle, style: AppTextStyles.subhead),
-                    ],
-                  ),
-                ),
-                // Trailing chevron on EVERY tile
-                Icon(Icons.chevron_right_rounded,
-                    size: 20, color: AppColors.textTertiary),
-              ],
+              ),
             ),
           ),
         ),

@@ -1,5 +1,7 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:dio/dio.dart';
 import '../services/auth_service.dart';
 import 'profile_screen.dart';
 import '../main.dart';
@@ -7,6 +9,8 @@ import '../core/theme/design_tokens.dart';
 import '../core/theme/app_text_styles.dart';
 import '../widgets/app_card.dart';
 import '../widgets/animated_list_item.dart';
+import '../widgets/error_retry_widget.dart';
+import 'announcements_screen.dart';
 
 const Map<String, IconData> _menuIcons = {
   'Announcements': Icons.campaign_outlined,
@@ -40,31 +44,52 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final _authService = AuthService();
   Map<String, dynamic>? _user;
   List<dynamic> _menus = [];
-  String _searchQuery = '';
+  List<dynamic>? _timetable;
   bool _loading = true;
+  String? _error;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    // Defer heavy work until AFTER the route entry animation completes.
+    // During the 300ms transition only the skeleton is shown — lightweight.
+    // Once the screen settles, _load() fires and AnimatedListItem stagger begins.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Future.delayed(AppDurations.medium, () {
+        if (mounted) _load();
+      });
+    });
   }
 
-  Future<void> _load() async {
-    final user = await _authService.getUser();
-    final menus = await _authService.getMenus();
-    if (mounted) {
-      setState(() {
-        _user = user;
-        _menus = menus
-            .where((m) =>
-                m['MenuText'] != null &&
-                m['RouteName'] != 'OutAppBrowser')
-            .toList();
-        _loading = false;
-      });
+  Future<void> _load({bool forceRefresh = false}) async {
+    try {
+      if (mounted) setState(() { _loading = true; _error = null; });
+      final user = await _authService.getUser();
+      final menus = await _authService.getMenus();
+      final timetable = await _authService.fetchTimetable();
+      if (mounted) {
+        setState(() {
+          _user = user;
+          _menus = menus
+              .where((m) =>
+                  m['MenuText'] != null &&
+                  m['RouteName'] != 'OutAppBrowser')
+              .toList();
+          _timetable = timetable;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+      }
     }
+    // Background profile refresh ...
     // Background profile refresh
-    _authService.fetchProfile().then((_) async {
+    _authService.fetchProfile(forceRefresh: forceRefresh).then((_) async {
       final refreshed = await _authService.getUser();
       if (mounted) setState(() => _user = refreshed);
     }).catchError((_) {});
@@ -72,17 +97,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> _onRefresh() async {
     HapticFeedback.mediumImpact();
-    await _load();
+    await _load(forceRefresh: true);
   }
 
-  List<dynamic> get _filtered => _searchQuery.isEmpty
-      ? _menus
-      : _menus
-          .where((m) => m['MenuText']
-              .toString()
-              .toLowerCase()
-              .contains(_searchQuery.toLowerCase()))
-          .toList();
+  // Filter out redundant items now available in the header
+  List<dynamic> get _filtered =>
+      _menus.where((item) =>
+          item['MenuText'] != 'Announcements' &&
+          item['MenuText'] != 'Messages').toList();
 
   @override
   Widget build(BuildContext context) {
@@ -94,7 +116,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
       backgroundColor: AppColors.bgDashboard,
       body: _loading
           ? const _DashboardSkeleton()
-          : RefreshIndicator(
+          : _error != null
+              ? ErrorRetryWidget(
+                  message: ErrorRetryWidget.friendlyMessage(_error!),
+                  onRetry: _load,
+                )
+              : RefreshIndicator(
               color: AppColors.primaryBlue,
               backgroundColor: AppColors.bgWhite,
               displacement: 60,
@@ -122,7 +149,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                               onTap: () {
                                 if (_user != null) {
                                   GlobalLayout.of(context)?.navigateTo(
-                                      4, ProfileScreen(user: _user!), '/profile');
+                                      3, ProfileScreen(user: _user!), '/profile');
                                 }
                               },
                               behavior: HitTestBehavior.opaque,
@@ -135,41 +162,41 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                     // Step 11: Hero wrapping avatar
                                     Hero(
                                       tag: 'user-avatar',
-                                      child: Material(
-                                        color: Colors.transparent,
-                                        child: CircleAvatar(
-                                          radius: 22,
-                                          backgroundColor: Colors.transparent,
-                                          child: Container(
-                                            width: 44,
-                                            height: 44,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              gradient: const LinearGradient(
-                                                colors: [
-                                                  AppColors.primaryBlue,
-                                                  AppColors.primaryBlueLt,
-                                                ],
-                                                begin: Alignment.topLeft,
-                                                end: Alignment.bottomRight,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(3),
+                                        decoration: BoxDecoration(
+                                          shape: BoxShape.circle,
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              AppColors.primaryBlue.withValues(alpha: 0.5),
+                                              AppColors.primaryBlue.withValues(alpha: 0.1),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                        ),
+                                        child: Container(
+                                          width: 44,
+                                          height: 44,
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: Colors.white,
+                                            boxShadow: [
+                                              BoxShadow(
+                                                color: Colors.black.withValues(alpha: 0.05),
+                                                blurRadius: 10,
+                                                offset: const Offset(0, 4),
                                               ),
-                                              border: Border.all(
-                                                color: AppColors.primaryBlue.withOpacity(0.15),
-                                                width: 3,
-                                              ),
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: AppColors.primaryBlue.withOpacity(0.3),
-                                                  blurRadius: 10,
-                                                  offset: const Offset(0, 4),
-                                                ),
-                                              ],
-                                            ),
+                                            ],
+                                          ),
+                                          child: ClipOval(
                                             child: Center(
                                               child: Text(
                                                 name.isNotEmpty ? name[0] : 'U',
-                                                style: AppTextStyles.headline
-                                                    .copyWith(color: Colors.white),
+                                                style: AppTextStyles.headline.copyWith(
+                                                  color: AppColors.primaryBlue,
+                                                  fontWeight: FontWeight.w800,
+                                                ),
                                               ),
                                             ),
                                           ),
@@ -186,7 +213,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 onTap: () {
                                   if (_user != null) {
                                     GlobalLayout.of(context)?.navigateTo(
-                                        4, ProfileScreen(user: _user!), '/profile');
+                                        3, ProfileScreen(user: _user!), '/profile');
                                   }
                                 },
                                 behavior: HitTestBehavior.opaque,
@@ -209,235 +236,122 @@ class _DashboardScreenState extends State<DashboardScreen> {
                                 ),
                               ),
                             ),
-                            // Notification button — 48x48 touch target
                             Semantics(
                               button: true,
-                              label: 'Notifications',
-                              child: SizedBox(
-                                width: AppSpacing.massive,
-                                height: AppSpacing.massive,
-                                child: Container(
-                                  decoration: BoxDecoration(
-                                    color: AppColors.bgWhite,
-                                    shape: BoxShape.circle,
-                                    boxShadow: AppShadows.cardSoft,
-                                  ),
-                                  child: Tooltip(
-                                    message: 'Notifications',
-                                    child: IconButton(
-                                      onPressed: () {},
-                                      icon: Icon(
-                                        Icons.notifications_none_rounded,
-                                        color: AppColors.textPrimary.withOpacity(0.7),
-                                        size: 22,
-                                      ),
-                                    ),
-                                  ),
+                              label: 'Messages',
+                              child: AppCard(
+                                width: 44,
+                                height: 44,
+                                padding: EdgeInsets.zero,
+                                radius: 22,
+                                onTap: () {},
+                                child: Icon(
+                                  Icons.message_outlined,
+                                  color: AppColors.textPrimary.withValues(alpha: 0.7),
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: AppSpacing.md),
+                            Semantics(
+                              button: true,
+                              label: 'Announcements',
+                              child: AppCard(
+                                width: 44,
+                                height: 44,
+                                padding: EdgeInsets.zero,
+                                radius: 22,
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => const AnnouncementsScreen()),
+                                  );
+                                },
+                                child: Icon(
+                                  Icons.campaign_outlined,
+                                  color: AppColors.textPrimary.withValues(alpha: 0.7),
+                                  size: 22,
                                 ),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxxl),
+                      const SizedBox(height: AppSpacing.xl),
 
-                      // 2. Main Title
+                      // 2. Main Title (Greeting + LPU TOUCH Logo)
                       AnimatedListItem(
                         index: 1,
                         child: Semantics(
                           header: true,
-                          child: const Text(
-                            'Welcome to\nLPU Touch',
-                            style: AppTextStyles.largeTitle,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-
-                      // 3. Search Bar (glass card)
-                      AnimatedListItem(
-                        index: 2,
-                        child: AppCard(
-                          isGlass: true,
-                          padding: EdgeInsets.zero,
-                          child: TextField(
-                            onChanged: (v) =>
-                                setState(() => _searchQuery = v),
-                            decoration: InputDecoration(
-                              hintText: 'Search menus...',
-                              hintStyle: AppTextStyles.subhead,
-                              prefixIcon: Padding(
-                                padding: const EdgeInsets.all(AppSpacing.lg),
-                                child: Container(
-                                  decoration: const BoxDecoration(
-                                    color: AppColors.searchHint,
-                                    shape: BoxShape.circle,
-                                  ),
-                                  width: AppSpacing.sm,
-                                  height: AppSpacing.sm,
+                          label: 'Welcome to LPU Touch',
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome To',
+                                style: AppTextStyles.headline.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                  letterSpacing: 0.5,
                                 ),
                               ),
-                              suffixIcon: const Icon(
-                                Icons.search_rounded,
-                                color: AppColors.searchHint,
-                                size: 22,
+                              const SizedBox(height: AppSpacing.xs),
+                              Row(
+                                children: [
+                                  Text('LPU', style: AppTextStyles.logoLpu.copyWith(fontSize: 22)),
+                                  const SizedBox(width: 6),
+                                  Text('TOUCH', style: AppTextStyles.logoTouch.copyWith(fontSize: 22)),
+                                ],
                               ),
-                              border: InputBorder.none,
-                              enabledBorder: InputBorder.none,
-                              focusedBorder: InputBorder.none,
-                              contentPadding: const EdgeInsets.symmetric(
-                                  vertical: AppSpacing.xl),
-                            ),
+                            ],
                           ),
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xxl),
+                      const SizedBox(height: AppSpacing.lg),
 
-                      // 4. Hero Card — subtle blue gradient
+                      // 3. Today's Timetable (2x4 Grid for up to 8 subjects)
+                      AnimatedListItem(
+                        index: 2,
+                        child: _buildTimetable(),
+                      ),
+                      const SizedBox(height: AppSpacing.xl),
+
+                      // 4. Quick Access Card
                       AnimatedListItem(
                         index: 3,
                         child: AppCard(
-                          padding: const EdgeInsets.all(AppSpacing.xxl),
+                          padding: const EdgeInsets.all(AppSpacing.md),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Text('Recent Files & Folders',
-                                      style: AppTextStyles.title3),
-                                  Icon(Icons.format_list_bulleted_rounded,
-                                      color: AppColors.textPrimary, size: 22),
+                                  Text('Quick Access', style: AppTextStyles.title3),
+                                  Icon(Icons.bolt_rounded,
+                                      color: AppColors.primaryBlue.withValues(alpha: 0.6),
+                                      size: 20),
                                 ],
                               ),
-                              const SizedBox(height: AppSpacing.xxl),
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  _buildShortcutItem(
-                                      Icons.folder_copy_rounded,
-                                      Colors.orangeAccent,
-                                      'My Backup',
-                                      '50.5 GB'),
-                                  _buildShortcutItem(
-                                      Icons.videocam_rounded,
-                                      AppColors.primaryBlue,
-                                      'Videos',
-                                      '10.5 GB'),
-                                  _buildShortcutItem(
-                                      Icons.description_rounded,
-                                      Colors.redAccent,
-                                      'Projects',
-                                      '600 KB'),
-                                  _buildShortcutItem(
-                                      Icons.folder_rounded,
-                                      Colors.amber,
-                                      'Photos',
-                                      '12.5 GB'),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-
-                      // 5. Splitter
-                      AnimatedListItem(
-                        index: 4,
-                        child: Row(
-                          children: [
-                            const Expanded(
-                                child: Divider(
-                                    color: AppColors.divider, thickness: 1)),
-                            Container(
-                              padding:
-                                  const EdgeInsets.symmetric(
-                                      horizontal: AppSpacing.lg,
-                                      vertical: AppSpacing.sm - 2),
-                              margin: const EdgeInsets.symmetric(
-                                  horizontal: AppSpacing.sm),
-                              decoration: BoxDecoration(
-                                color: AppColors.bgDashboard,
-                                borderRadius:
-                                    BorderRadius.circular(AppRadius.pill),
-                                border: Border.all(
-                                    color: AppColors.divider, width: 1),
-                              ),
-                              child: Text('420 Files • 6 Folder',
-                                  style: AppTextStyles.caption),
-                            ),
-                            const Expanded(
-                                child: Divider(
-                                    color: AppColors.divider, thickness: 1)),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxl),
-
-                      // 6. Viewed Links Card — replaced yellow with subtle blue
-                      AnimatedListItem(
-                        index: 5,
-                        child: AppCard(
-                          padding: const EdgeInsets.fromLTRB(
-                            AppSpacing.xxl,
-                            AppSpacing.xxl,
-                            AppSpacing.xxl,
-                            AppSpacing.xl,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text('Viewed Links',
-                                  style: AppTextStyles.title3),
-                              const SizedBox(height: AppSpacing.xxl),
-                              // Empty state
-                              Center(
-                                child: Column(
-                                  children: [
-                                    Icon(
-                                      Icons.link_rounded,
-                                      size: AppSpacing.massive,
-                                      color: AppColors.textTertiary
-                                          .withOpacity(0.5),
-                                    ),
-                                    const SizedBox(height: AppSpacing.sm),
-                                    Text(
-                                      'No recent links',
-                                      style: AppTextStyles.footnote,
-                                    ),
-                                  ],
+                              const SizedBox(height: AppSpacing.sm),
+                              GridView.builder(
+                                shrinkWrap: true,
+                                physics: const NeverScrollableScrollPhysics(),
+                                padding: EdgeInsets.zero,
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 3,
+                                  crossAxisSpacing: 8,
+                                  mainAxisSpacing: 10,
+                                  childAspectRatio: 1.15,
                                 ),
+                                itemCount: _filtered.length > 6 ? 6 : _filtered.length,
+                                itemBuilder: (context, index) =>
+                                    _MenuCard(item: _filtered[index]),
                               ),
                             ],
                           ),
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.xxxl),
-
-                      // 7. Quick Activities
-                      AnimatedListItem(
-                        index: 6,
-                        child: Text('Quick Activities', style: AppTextStyles.title3),
-                      ),
-                      const SizedBox(height: AppSpacing.lg),
-                      AnimatedListItem(
-                        index: 7,
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 3,
-                            crossAxisSpacing: AppSpacing.lg,
-                            mainAxisSpacing: AppSpacing.lg,
-                            childAspectRatio: 0.85,
-                          ),
-                          itemCount: _filtered.length,
-                          itemBuilder: (context, index) =>
-                              _MenuCard(item: _filtered[index]),
                         ),
                       ),
                       const SizedBox(height: AppSpacing.dockBuffer),
@@ -449,31 +363,185 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
-  Widget _buildShortcutItem(
-      IconData iconData, Color iconColor, String title, String subtitle) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(AppSpacing.xl),
-          decoration: BoxDecoration(
-            color: AppColors.bgWhite,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: iconColor.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, AppSpacing.sm),
-              ),
-            ],
+  // ─── Timetable Layout (Neumorphic Soft UI Grid) ─────────────────────────
+  Widget _buildTimetable() {
+    final now = DateTime.now();
+    final isWeekend = now.weekday == DateTime.saturday || now.weekday == DateTime.sunday;
+
+    final List<Map<String, String>> todaysTimetable = [];
+
+    if (_timetable != null && _timetable!.isNotEmpty) {
+      final String todayName = [
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+      ][now.weekday - 1];
+
+      // Filter for today's classes
+      final List<dynamic> todayClasses = _timetable!.where((t) {
+        String rawDay = (t['WeekDay']?.toString() ?? t['Day']?.toString() ?? '').trim();
+        
+        // Handle numeric days (1=Monday, ..., 7=Sunday)
+        final dayMap = {
+          "1": "Monday", "2": "Tuesday", "3": "Wednesday",
+          "4": "Thursday", "5": "Friday", "6": "Saturday", "7": "Sunday"
+        };
+        if (dayMap.containsKey(rawDay)) {
+          rawDay = dayMap[rawDay]!;
+        }
+        
+        return rawDay.toLowerCase() == todayName.toLowerCase();
+      }).toList();
+
+      if (todayClasses.isNotEmpty) {
+        for (var t in todayClasses) {
+          final String desc = t['Description']?.toString() ?? 'N/A';
+          final String time = (t['AttendanceTime']?.toString() ?? 'N/A').trim();
+          
+          final codeMatch = RegExp(r'C:([^\s/]+)').firstMatch(desc);
+          final groupMatch = RegExp(r'G:([^\s/]+)').firstMatch(desc);
+          final roomMatch = RegExp(r'R:\s?([^\n/]+)').firstMatch(desc);
+          
+          String code = codeMatch?.group(1) ?? '';
+          String group = groupMatch?.group(1) ?? '';
+          String room = roomMatch?.group(1)?.trim() ?? '';
+          String type = desc.split('/').first.trim();
+          
+          if (code.isEmpty) code = type;
+
+          todaysTimetable.add({
+            'code': code.toUpperCase(),
+            'type': type,
+            'group': group,
+            'room': room.isNotEmpty ? room : 'Room',
+            'time': time,
+          });
+        }
+      } else if (isWeekend) {
+        todaysTimetable.addAll(List.generate(8, (_) => {
+          'code': '', 'room': 'No class', 'time': '-', 'type': '', 'group': ''
+        }));
+      } else {
+        todaysTimetable.add({
+          'code': 'No classes scheduled', 'room': 'Free Day', 'time': '-', 'type': '', 'group': ''
+        });
+      }
+    } else if (isWeekend) {
+      todaysTimetable.addAll(List.generate(8, (_) => {
+        'code': '', 'room': 'No class', 'time': '-', 'type': '', 'group': ''
+      }));
+    } else {
+      todaysTimetable.addAll(List.generate(8, (_) => {
+        'code': '', 'room': 'Loading...', 'time': '-', 'type': '', 'group': ''
+      }));
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Today\'s Timetable', style: AppTextStyles.title3),
+                Icon(Icons.calendar_today_rounded, color: AppColors.textPrimary.withValues(alpha: 0.6), size: 18),
+              ],
+            ),
           ),
-          child: Icon(iconData, color: iconColor, size: 26),
-        ),
-        const SizedBox(height: AppSpacing.md),
-        Text(title, style: AppTextStyles.footnote.copyWith(
-            color: AppColors.textSecondary, fontWeight: FontWeight.w700)),
-        const SizedBox(height: 2),
-        Text(subtitle, style: AppTextStyles.caption),
-      ],
+          const SizedBox(height: AppSpacing.lg),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: AppSpacing.xl, // Increase spacing for Neumorphic shadows
+              crossAxisSpacing: AppSpacing.xl,
+              mainAxisExtent: 85,
+            ),
+            itemCount: todaysTimetable.length,
+            itemBuilder: (context, i) {
+              final t = todaysTimetable[i];
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md, vertical: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.bgDashboard,
+                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 15,
+                      offset: const Offset(4, 4),
+                    ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      blurRadius: 15,
+                      offset: Offset(-4, -4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                (t['code'] ?? '').toUpperCase(),
+                                style: AppTextStyles.headline.copyWith(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 15,
+                                  color: Colors.black,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                t['room'] ?? 'Room',
+                                style: AppTextStyles.caption.copyWith(
+                                  color: const Color(0xFF878D96), // Solid equivalent of Primary color @ 0.5 opacity
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 12,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.brandOrangeGlow.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            t['time'] ?? '-',
+                            style: AppTextStyles.caption.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 9,
+                              color: AppColors.brandOrangeGlow,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+      ),
     );
   }
 }
@@ -514,44 +582,50 @@ class _MenuCardState extends State<_MenuCard> {
           }
         },
         child: AnimatedScale(
-          scale: _pressed ? 0.94 : 1.0,
+          scale: _pressed ? 0.92 : 1.0,
           duration: AppDurations.fast,
-          child: Container(
-            decoration: BoxDecoration(
-              color: AppColors.cardWhite,
-              borderRadius: BorderRadius.circular(AppRadius.xxl),
-              boxShadow: AppShadows.cardSoft,
-            ),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: AppSpacing.massive,
-                  height: AppSpacing.massive,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryBlue.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                  ),
-                  child: Icon(icon, color: AppColors.primaryBlue, size: 28),
-                ),
-                const SizedBox(height: AppSpacing.sm + 2),
-                Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm),
-                  child: Text(
-                    title,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.footnote.copyWith(
-                      color: AppColors.textSecondary,
-                      fontWeight: FontWeight.w600,
-                      height: 1.2,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(16),
+                  color: AppColors.bgDashboard,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 10,
+                      offset: const Offset(3, 3),
                     ),
-                  ),
+                    const BoxShadow(
+                      color: Colors.white,
+                      blurRadius: 10,
+                      offset: Offset(-3, -3),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+                child: Icon(
+                  icon,
+                  color: AppColors.textPrimary.withValues(alpha: 0.85),
+                  size: 22,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                title.contains(' ') ? title.split(' ').first : title,
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTextStyles.footnote.copyWith(
+                  color: AppColors.textPrimary.withValues(alpha: 0.8),
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                  letterSpacing: -0.2,
+                ),
+              ),
+            ],
           ),
         ),
       ),

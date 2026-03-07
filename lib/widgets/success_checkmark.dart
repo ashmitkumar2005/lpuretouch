@@ -71,24 +71,26 @@ class _SuccessCheckmarkState extends State<SuccessCheckmark>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, _) {
-        return Transform.scale(
-          scale: _scale.value,
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: CustomPaint(
-              painter: _CheckmarkPainter(
-                progress: _checkProgress.value,
-                bgColor: AppColors.success,
-                checkColor: Colors.white,
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: _ctrl,
+        builder: (context, _) {
+          return Transform.scale(
+            scale: _scale.value,
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: CustomPaint(
+                painter: _CheckmarkPainter(
+                  progress: _checkProgress.value,
+                  bgColor: AppColors.success,
+                  checkColor: Colors.white,
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 }

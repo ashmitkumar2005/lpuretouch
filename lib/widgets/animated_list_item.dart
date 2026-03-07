@@ -54,16 +54,12 @@ class _AnimatedListItemState extends State<AnimatedListItem>
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: _ctrl,
-      builder: (context, child) => Opacity(
-        opacity: _opacity.value,
-        child: Transform.translate(
-          offset: Offset(0, _translateY.value),
-          child: child,
-        ),
+    return FadeTransition(
+      opacity: _opacity,
+      child: Transform.translate(
+        offset: Offset(0, _translateY.value),
+        child: widget.child,
       ),
-      child: widget.child,
     );
   }
 }
