@@ -56,8 +56,10 @@ class _AnimatedListItemState extends State<AnimatedListItem>
   Widget build(BuildContext context) {
     return FadeTransition(
       opacity: _opacity,
-      child: Transform.translate(
-        offset: Offset(0, _translateY.value),
+      child: ScaleTransition(
+        scale: Tween<double>(begin: 0.98, end: 1.0).animate(
+          CurvedAnimation(parent: _ctrl, curve: Curves.easeOut),
+        ),
         child: widget.child,
       ),
     );

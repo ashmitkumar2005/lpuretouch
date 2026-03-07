@@ -350,15 +350,12 @@ class _ProfileScreenState extends State<ProfileScreen>
         borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.xxl)),
       ),
-      builder: (context) => BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.85),
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
-          ),
-          child: _DigitalIDModal(user: widget.user),
+      builder: (context) => Container(
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.95), // Fixed opacity, no blur
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
         ),
+        child: _DigitalIDModal(user: widget.user),
       ),
     );
   }
@@ -377,9 +374,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             top: Radius.circular(AppRadius.xxl)),
       ),
       builder: (context) {
-        return BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: DraggableScrollableSheet(
+        return DraggableScrollableSheet(
             initialChildSize: 0.6,
             minChildSize: 0.4,
             maxChildSize: 0.9,
@@ -423,61 +418,67 @@ class _ProfileScreenState extends State<ProfileScreen>
                       style: AppTextStyles.largeTitle
                           .copyWith(fontSize: 26)),
                   const SizedBox(height: AppSpacing.xxl),
-                  ...details.entries.map((e) {
-                    final cleanedValue = _cleanValue(e.value);
-                    if (cleanedValue.isEmpty || cleanedValue == 'N/A') {
-                      return const SizedBox.shrink();
-                    }
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                      padding: const EdgeInsets.all(AppSpacing.lg),
-                      decoration: BoxDecoration(
-                        color: AppColors.bgDashboard,
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.22),
-                            blurRadius: 16,
-                            offset: const Offset(5, 5),
+                    ...details.entries.toList().asMap().entries.map((entry) {
+                      final i = entry.key;
+                      final e = entry.value;
+                      final cleanedValue = _cleanValue(e.value);
+                      if (cleanedValue.isEmpty || cleanedValue == 'N/A') {
+                        return const SizedBox.shrink();
+                      }
+                      return AnimatedListItem(
+                        index: i,
+                        delay: const Duration(milliseconds: 30),
+                        child: Container(
+                          margin: const EdgeInsets.only(bottom: AppSpacing.lg),
+                          padding: const EdgeInsets.all(AppSpacing.lg),
+                          decoration: BoxDecoration(
+                            color: AppColors.bgDashboard,
+                            borderRadius: BorderRadius.circular(AppRadius.xl),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.1),
+                                blurRadius: 10,
+                                offset: const Offset(4, 4),
+                              ),
+                              const BoxShadow(
+                                color: Colors.white,
+                                blurRadius: 10,
+                                offset: Offset(-4, -4),
+                              ),
+                            ],
                           ),
-                          const BoxShadow(
-                            color: Colors.white,
-                            blurRadius: 16,
-                            offset: Offset(-5, -5),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                e.key.toUpperCase(),
+                                style: AppTextStyles.caption.copyWith(
+                                  letterSpacing: 1.5,
+                                  fontWeight: FontWeight.w900,
+                                  color: AppColors.textPrimary.withOpacity(0.4),
+                                ),
+                              ),
+                              const SizedBox(height: AppSpacing.md),
+                              Text(cleanedValue,
+                                  style: AppTextStyles.subhead.copyWith(
+                                    color: AppColors.textSecondary,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.5,
+                                  )),
+                            ],
                           ),
-                        ],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            e.key.toUpperCase(),
-                            style: AppTextStyles.caption.copyWith(
-                              letterSpacing: 1.5,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                          const SizedBox(height: AppSpacing.md),
-                          Text(cleanedValue,
-                              style: AppTextStyles.subhead.copyWith(
-                                color: AppColors.textSecondary,
-                                fontWeight: FontWeight.w600,
-                                height: 1.5,
-                              )),
-                        ],
-                      ),
-                    );
-                  }),
+                        ),
+                      );
+                    }),
                   const SizedBox(height: AppSpacing.xxxl),
                 ],
               ),
             );
           },
-        ),
-      );
-    },
-  );
-}
+        );
+      },
+    );
+  }
 
   String _cleanValue(String val) {
     if (val == 'N/A' || val.trim().isEmpty) return 'N/A';

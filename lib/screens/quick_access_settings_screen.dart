@@ -19,6 +19,8 @@ class _QuickAccessSettingsScreenState extends State<QuickAccessSettingsScreen> {
   List<dynamic> _allMenus = [];
   List<String> _selectedTitles = [];
   bool _loading = true;
+  String _searchQuery = '';
+  final TextEditingController _searchCtrl = TextEditingController();
 
   final Map<String, IconData> _menuIcons = {
     'Announcements': Icons.campaign_outlined,
@@ -45,6 +47,12 @@ class _QuickAccessSettingsScreenState extends State<QuickAccessSettingsScreen> {
   void initState() {
     super.initState();
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -85,6 +93,24 @@ class _QuickAccessSettingsScreenState extends State<QuickAccessSettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // 1. Filter
+    final filtered = _allMenus.where((m) {
+      final text = (m['MenuText'] as String).toLowerCase();
+      return text.contains(_searchQuery.toLowerCase());
+    }).toList();
+
+    // 2. Sort: Pinned first, then ABC
+    filtered.sort((a, b) {
+      final tA = a['MenuText'] as String;
+      final tB = b['MenuText'] as String;
+      final selA = _selectedTitles.contains(tA);
+      final selB = _selectedTitles.contains(tB);
+      
+      if (selA && !selB) return -1;
+      if (!selA && selB) return 1;
+      return tA.compareTo(tB);
+    });
+
     return Scaffold(
       backgroundColor: AppColors.bgDashboard,
       appBar: AppBar(
@@ -99,94 +125,134 @@ class _QuickAccessSettingsScreenState extends State<QuickAccessSettingsScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator(color: AppColors.primaryBlue))
-          : ListView.builder(
-              padding: const EdgeInsets.all(AppSpacing.xl),
-              itemCount: _allMenus.length,
-              itemBuilder: (context, index) {
-                final item = _allMenus[index];
-                final title = item['MenuText'] as String;
-                final isSelected = _selectedTitles.contains(title);
-                final icon = _menuIcons[title] ?? Icons.grid_view_rounded;
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.lg),
-                  child: GestureDetector(
-                    onTap: () => _toggleItem(title),
-                    child: AnimatedContainer(
-                      duration: AppDurations.fast,
-                      padding: const EdgeInsets.all(AppSpacing.md),
-                      decoration: BoxDecoration(
-                        color: isSelected 
-                            ? AppColors.primaryBlue.withValues(alpha: 0.02)
-                            : AppColors.bgDashboard,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(
-                          color: isSelected 
-                              ? AppColors.primaryBlue.withValues(alpha: 0.3)
-                              : Colors.transparent,
-                          width: 1.5,
+          : Column(
+              children: [
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(AppSpacing.xl, 0, AppSpacing.xl, AppSpacing.lg),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.bgDashboard,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          offset: const Offset(4, 4),
+                          blurRadius: 10,
                         ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: isSelected ? 0.05 : 0.08),
-                            offset: const Offset(6, 6),
-                            blurRadius: 12,
-                          ),
-                          const BoxShadow(
-                            color: Colors.white,
-                            offset: Offset(-6, -6),
-                            blurRadius: 12,
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: isSelected 
-                                  ? AppColors.primaryBlue.withValues(alpha: 0.1)
-                                  : AppColors.bgDashboard,
-                              shape: BoxShape.circle,
-                              boxShadow: isSelected ? null : [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  offset: const Offset(2, 2),
-                                  blurRadius: 4,
-                                ),
-                                const BoxShadow(
-                                  color: Colors.white,
-                                  offset: Offset(-2, -2),
-                                  blurRadius: 4,
-                                ),
-                              ],
-                            ),
-                            child: Icon(
-                              icon, 
-                              color: isSelected ? AppColors.primaryBlue : AppColors.textTertiary, 
-                              size: 24
-                            ),
-                          ),
-                          const SizedBox(width: AppSpacing.lg),
-                          Expanded(
-                            child: Text(
-                              title,
-                              style: AppTextStyles.body.copyWith(
-                                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                                color: isSelected ? AppColors.textPrimary : AppColors.textTertiary,
-                              ),
-                            ),
-                          ),
-                          if (isSelected)
-                            const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue)
-                          else
-                            Icon(Icons.add_circle_outline_rounded, color: AppColors.textTertiary.withValues(alpha: 0.5)),
-                        ],
+                        const BoxShadow(
+                          color: Colors.white,
+                          offset: Offset(-4, -4),
+                          blurRadius: 10,
+                        ),
+                      ],
+                    ),
+                    child: TextField(
+                      controller: _searchCtrl,
+                      onChanged: (val) => setState(() => _searchQuery = val),
+                      decoration: InputDecoration(
+                        hintText: 'Search widgets...',
+                        hintStyle: AppTextStyles.body.copyWith(color: AppColors.textTertiary.withValues(alpha: 0.5)),
+                        prefixIcon: const Icon(Icons.search_rounded, color: AppColors.textTertiary),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
                       ),
                     ),
                   ),
-                );
-              },
+                ),
+                
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl, vertical: AppSpacing.sm),
+                    itemCount: filtered.length,
+                    itemBuilder: (context, index) {
+                      final item = filtered[index];
+                      final title = item['MenuText'] as String;
+                      final isSelected = _selectedTitles.contains(title);
+                      final icon = _menuIcons[title] ?? Icons.grid_view_rounded;
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: AppSpacing.lg),
+                        child: GestureDetector(
+                          onTap: () => _toggleItem(title),
+                          child: AnimatedContainer(
+                            duration: AppDurations.fast,
+                            padding: const EdgeInsets.all(AppSpacing.md),
+                            decoration: BoxDecoration(
+                              color: isSelected 
+                                  ? AppColors.primaryBlue.withValues(alpha: 0.02)
+                                  : AppColors.bgDashboard,
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(
+                                color: isSelected 
+                                    ? AppColors.primaryBlue.withValues(alpha: 0.3)
+                                    : Colors.transparent,
+                                width: 1.5,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: isSelected ? 0.05 : 0.08),
+                                  offset: const Offset(6, 6),
+                                  blurRadius: 12,
+                                ),
+                                const BoxShadow(
+                                  color: Colors.white,
+                                  offset: Offset(-6, -6),
+                                  blurRadius: 12,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: isSelected 
+                                        ? AppColors.primaryBlue.withValues(alpha: 0.1)
+                                        : AppColors.bgDashboard,
+                                    shape: BoxShape.circle,
+                                    boxShadow: isSelected ? null : [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.05),
+                                        offset: const Offset(2, 2),
+                                        blurRadius: 4,
+                                      ),
+                                      const BoxShadow(
+                                        color: Colors.white,
+                                        offset: Offset(-2, -2),
+                                        blurRadius: 4,
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    icon, 
+                                    color: isSelected ? AppColors.primaryBlue : AppColors.textTertiary, 
+                                    size: 24
+                                  ),
+                                ),
+                                const SizedBox(width: AppSpacing.lg),
+                                Expanded(
+                                  child: Text(
+                                    title,
+                                    style: AppTextStyles.body.copyWith(
+                                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                      color: isSelected ? AppColors.textPrimary : AppColors.textTertiary,
+                                    ),
+                                  ),
+                                ),
+                                if (isSelected)
+                                  const Icon(Icons.check_circle_rounded, color: AppColors.primaryBlue)
+                                else
+                                  Icon(Icons.add_circle_outline_rounded, color: AppColors.textTertiary.withValues(alpha: 0.5)),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
             ),
     );
   }
