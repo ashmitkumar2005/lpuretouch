@@ -1,6 +1,6 @@
-# LPU Touch
+# LPU ReTouch
 
-LPU Touch is a modernized, unofficial client application designed for Lovely Professional University (LPU) students. It provides a refined user experience and interfaces with the University Management System (UMS) to offer core student services in a fluid and intuitive layout.
+LPU ReTouch is a modernized, unofficial client application designed for Lovely Professional University (LPU) students. It provides a refined user experience and interfaces with the University Management System (UMS) to offer core student services in a fluid and intuitive layout.
 
 ## Overview
 
